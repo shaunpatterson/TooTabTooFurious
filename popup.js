@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     progressFill: document.querySelector('.progress-fill'),
     progressText: document.querySelector('.progress-text'),
     organizeBtn: document.getElementById('organizeBtn'),
+    organizeAllBtn: document.getElementById('organizeAllBtn'),
     autoModeBtn: document.getElementById('autoModeBtn'),
     autoModeText: document.getElementById('autoModeText'),
     tabCount: document.getElementById('tabCount'),
@@ -176,7 +177,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           await loadRecentGroups();
           
           setTimeout(() => {
-            elements.organizeBtn.textContent = 'Organize Tabs';
+            elements.organizeBtn.textContent = 'Organize Current Window';
             elements.organizeBtn.disabled = false;
           }, 2000);
         } else {
@@ -187,11 +188,47 @@ document.addEventListener('DOMContentLoaded', async () => {
         elements.organizeBtn.textContent = 'Error';
         
         setTimeout(() => {
-          elements.organizeBtn.innerHTML = '<span class="btn-icon">🚀</span> Organize Tabs Now';
+          elements.organizeBtn.textContent = 'Organize Current Window';
           elements.organizeBtn.disabled = false;
         }, 2000);
       }
     });
+    
+    // Organize All Windows button
+    if (elements.organizeAllBtn) {
+      elements.organizeAllBtn.addEventListener('click', async () => {
+        elements.organizeAllBtn.disabled = true;
+        elements.organizeAllBtn.textContent = 'Organizing All...';
+        
+        try {
+          const response = await chrome.runtime.sendMessage({ 
+            action: 'organizeTabs',
+            allWindows: true
+          });
+          
+          if (response.success) {
+            elements.organizeAllBtn.textContent = 'Done!';
+            await updateStatus();
+            await loadRecentGroups();
+            
+            setTimeout(() => {
+              elements.organizeAllBtn.textContent = 'Organize All Windows';
+              elements.organizeAllBtn.disabled = false;
+            }, 2000);
+          } else {
+            throw new Error(response.error || 'Failed to organize tabs');
+          }
+        } catch (error) {
+          console.error('Failed to organize all windows:', error);
+          elements.organizeAllBtn.textContent = 'Error';
+          
+          setTimeout(() => {
+            elements.organizeAllBtn.textContent = 'Organize All Windows';
+            elements.organizeAllBtn.disabled = false;
+          }, 2000);
+        }
+      });
+    }
 
     // Auto mode toggle
     elements.autoModeBtn.addEventListener('click', async () => {
@@ -212,6 +249,41 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
 
+    // Clean duplicates button
+    const cleanupBtn = document.getElementById('cleanupBtn');
+    if (cleanupBtn) {
+      cleanupBtn.addEventListener('click', async () => {
+        cleanupBtn.disabled = true;
+        cleanupBtn.textContent = 'Cleaning...';
+        
+        try {
+          const response = await chrome.runtime.sendMessage({ action: 'cleanupDuplicates' });
+          if (response.success) {
+            cleanupBtn.textContent = 'Cleaned!';
+            setTimeout(() => {
+              cleanupBtn.textContent = 'Clean Duplicates';
+              cleanupBtn.disabled = false;
+              updateStatus(); // Refresh the UI
+              loadRecentGroups();
+            }, 2000);
+          } else {
+            cleanupBtn.textContent = 'Failed';
+            setTimeout(() => {
+              cleanupBtn.textContent = 'Clean Duplicates';
+              cleanupBtn.disabled = false;
+            }, 2000);
+          }
+        } catch (error) {
+          console.error('Cleanup failed:', error);
+          cleanupBtn.textContent = 'Error';
+          setTimeout(() => {
+            cleanupBtn.textContent = 'Clean Duplicates';
+            cleanupBtn.disabled = false;
+          }, 2000);
+        }
+      });
+    }
+    
     // Settings button
     elements.settingsBtn.addEventListener('click', () => {
       chrome.runtime.openOptionsPage();

@@ -2,22 +2,36 @@ const path = require('path');
 
 module.exports = {
   mode: 'production',
-  entry: './src/webllm-bundle.js',
+  entry: './background.js',
   output: {
-    filename: 'webllm.bundle.js',
-    path: path.resolve(__dirname, 'lib'),
-    library: 'WebLLM',
-    libraryTarget: 'var',
-    libraryExport: 'default'
+    filename: 'background.bundle.js',
+    path: path.resolve(__dirname, 'dist'),
   },
   resolve: {
+    extensions: ['.js'],
     fallback: {
       "path": false,
       "fs": false,
       "crypto": false,
       "buffer": false,
       "stream": false,
+      "perf_hooks": false,
     }
+  },
+  module: {
+    rules: [
+      {
+        test: /\.js$/,
+        exclude: /node_modules/,
+        use: {
+          loader: 'babel-loader',
+          options: {
+            presets: ['@babel/preset-env'],
+            plugins: []
+          }
+        }
+      }
+    ]
   },
   performance: {
     maxAssetSize: 50000000,

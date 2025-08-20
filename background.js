@@ -26,41 +26,25 @@ class TooTabTooFurious {
     // Set up listeners
     this.setupListeners();
     
+    // Clean up duplicate tab groups on startup
+    console.log('🧹 Running duplicate cleanup on startup...');
+    try {
+      const result = await this.tabManager.cleanupAllDuplicates();
+      console.log('Startup cleanup result:', result);
+    } catch (error) {
+      console.error('Failed to cleanup duplicates on startup:', error);
+    }
+    
     // Initial organization if auto mode is on
     if (this.isAutoMode) {
+      console.log('🤖 Auto mode enabled - organizing tabs...');
       this.organizeTabs();
     }
   }
 
   setupListeners() {
-    // Listen for messages from popup and offscreen document
+    // Listen for messages from popup
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-      // Handle LLM progress updates from offscreen document
-      if (request.type === 'llm-progress') {
-        this.llm.loadProgress = request.progress;
-        this.llm.loading = true;
-        console.log(`LLM Loading: ${request.progress}% - ${request.text}`);
-        return false;
-      } else if (request.type === 'llm-ready') {
-        this.llm.ready = true;
-        this.llm.loading = false;
-        this.llm.loadProgress = 100;
-        console.log('LLM Ready!');
-        return false;
-      } else if (request.type === 'llm-error') {
-        this.llm.loadError = request.error;
-        this.llm.loading = false;
-        console.error('LLM Error:', request.error);
-        return false;
-      } else if (request.type === 'llm-fallback') {
-        this.llm.ready = false;
-        this.llm.loading = false;
-        this.llm.loadError = request.error || 'No GPU - using smart patterns';
-        this.llm.offscreenReady = true; // Still ready to process with fallback
-        console.log('Using fallback categorization:', request.error);
-        return false;
-      }
-      
       // Handle regular messages
       this.handleMessage(request, sender, sendResponse);
       return true; // Keep channel open for async response
@@ -84,7 +68,8 @@ class TooTabTooFurious {
     try {
       switch (request.action) {
         case 'organizeTabs':
-          const result = await this.organizeTabs();
+          const allWindows = request.allWindows || false;
+          const result = await this.organizeTabs(allWindows);
           sendResponse({ success: true, result });
           break;
           
@@ -115,6 +100,12 @@ class TooTabTooFurious {
           sendResponse({ success: true, maxGroups: this.maxGroups });
           break;
           
+        case 'cleanupDuplicates':
+          console.log('Running aggressive duplicate cleanup...');
+          await this.tabManager.cleanupAllDuplicates();
+          sendResponse({ success: true, message: 'Duplicate groups cleaned up' });
+          break;
+          
         default:
           sendResponse({ success: false, error: 'Unknown action' });
       }
@@ -124,65 +115,161 @@ class TooTabTooFurious {
     }
   }
 
-  async organizeTabs() {
-    console.log('🚀 Organizing tabs...');
+  async organizeTabs(allWindows = false) {
+    console.log(`🚀 Organizing tabs... (${allWindows ? 'all windows' : 'current window only'})`);
     
-    // Get all tabs
-    const tabs = await chrome.tabs.query({ currentWindow: true });
-    
-    // Filter out chrome:// and extension pages, and already grouped tabs
-    const organizableTabs = tabs.filter(tab => 
-      tab.url && 
-      !tab.url.startsWith('chrome://') && 
-      !tab.url.startsWith('chrome-extension://') &&
-      tab.groupId === -1 // Only organize ungrouped tabs
-    );
-    
-    if (organizableTabs.length === 0) {
-      return { message: 'No ungrouped tabs to organize' };
-    }
-    
-    // Get enhanced tab information with metadata
-    const tabInfo = await Promise.all(organizableTabs.map(async tab => {
-      let metadata = {};
+    try {
+      console.log('Step 1: Getting window info...');
       
-      // Try to get metadata from content script
-      try {
-        metadata = await chrome.tabs.sendMessage(tab.id, { action: 'extractMetadata' });
-      } catch (error) {
-        // Content script not available or failed
-        console.log(`Could not extract metadata from tab ${tab.id}:`, error.message);
+      let tabs;
+      
+      if (allWindows) {
+        // Get all windows (including minimized)
+        const windows = await chrome.windows.getAll({ windowTypes: ['normal'] });
+        console.log(`Found ${windows.length} normal windows`);
+        
+        // Log each window
+        for (const window of windows) {
+          const windowTabs = await chrome.tabs.query({ windowId: window.id });
+          console.log(`Window ${window.id} (${window.state}): ${windowTabs.length} tabs`);
+        }
+        
+        // Get ALL tabs from ALL windows (remove windowType filter)
+        tabs = await chrome.tabs.query({});
+        console.log(`Step 2: Found ${tabs.length} total tabs across all windows`);
+        
+        // Filter to only normal window tabs
+        const normalWindowIds = new Set(windows.map(w => w.id));
+        tabs = tabs.filter(tab => normalWindowIds.has(tab.windowId));
+        console.log(`After filtering to normal windows: ${tabs.length} tabs`);
+      } else {
+        // Check if current window is a normal window
+        const currentWindow = await chrome.windows.getCurrent();
+        if (currentWindow.type !== 'normal') {
+          console.log(`Cannot organize tabs in ${currentWindow.type} window - only normal windows supported`);
+          return { message: `Tab organization only works in normal browser windows, not ${currentWindow.type} windows` };
+        }
+        
+        console.log('Step 1b: Getting tabs from current window...');
+        
+        // Get tabs from current window only
+        tabs = await chrome.tabs.query({ currentWindow: true });
+        console.log(`Step 2: Found ${tabs.length} total tabs in current window`);
+      
       }
       
+      // Filter out chrome:// and extension pages and pinned tabs
+      console.log(`Step 3: Filtering ${tabs.length} tabs...`);
+      
+      // Log what we're filtering
+      const chromeTabs = tabs.filter(tab => tab.url && tab.url.startsWith('chrome://'));
+      const extensionTabs = tabs.filter(tab => tab.url && tab.url.startsWith('chrome-extension://'));
+      const pinnedTabs = tabs.filter(tab => tab.pinned);
+      const noUrlTabs = tabs.filter(tab => !tab.url);
+      
+      console.log(`  - Chrome tabs: ${chromeTabs.length}`);
+      console.log(`  - Extension tabs: ${extensionTabs.length}`);
+      console.log(`  - Pinned tabs: ${pinnedTabs.length}`);
+      console.log(`  - Tabs without URL: ${noUrlTabs.length}`);
+      
+      const organizableTabs = tabs.filter(tab => 
+        tab.url && 
+        !tab.url.startsWith('chrome://') && 
+        !tab.url.startsWith('chrome-extension://') &&
+        !tab.pinned
+      );
+      console.log(`Step 3b: ${organizableTabs.length} tabs to organize (after filtering)`);
+      
+      // Log first 5 organizable tabs for debugging
+      console.log('Sample of organizable tabs:');
+      organizableTabs.slice(0, 5).forEach(tab => {
+        console.log(`  - [${tab.id}] ${tab.url.substring(0, 50)}... (window: ${tab.windowId})`);
+      });
+      
+      if (organizableTabs.length === 0) {
+        console.log('No tabs to organize');
+        return { message: 'No tabs to organize' };
+      }
+      
+      console.log('Step 4: Getting tab metadata...');
+      // Get enhanced tab information with metadata
+      const tabInfo = await Promise.all(organizableTabs.map(async tab => {
+        let metadata = {};
+        
+        // Try to get metadata from content script
+        try {
+          metadata = await chrome.tabs.sendMessage(tab.id, { action: 'extractMetadata' });
+        } catch (error) {
+          // Content script not available or failed
+          console.log(`  Could not extract metadata from tab ${tab.id}: ${error.message}`);
+        }
+        
+        return {
+          id: tab.id,
+          title: tab.title || '',
+          url: tab.url,
+          domain: new URL(tab.url).hostname,
+          // Enhanced metadata for better categorization
+          description: metadata.description || '',
+          keywords: metadata.keywords || '',
+          ogType: metadata.ogType || '',
+          schemaType: metadata.schemaType || '',
+          mainHeading: metadata.mainHeading || '',
+          bodyPreview: metadata.bodyText || ''
+        };
+      }));
+      console.log('Step 5: Metadata collected');
+      
+      console.log('Step 6: Initializing LLM if needed...');
+      if (!this.llm.isReady()) {
+        console.log('  LLM not ready, initializing...');
+        await this.llm.initialize();
+      }
+      console.log('  LLM status:', this.llm.getStatus());
+      
+      console.log('Step 7: Calling LLM.categorizeTabs()...');
+      // Use LLM to categorize tabs with enhanced metadata
+      const categories = await this.llm.categorizeTabs(tabInfo, this.maxGroups);
+      console.log('Step 8: Categories received:', categories);
+    
+      console.log('Step 9: Creating/merging tab groups...');
+      
+      // Group tabs by window ID
+      const tabsByWindow = {};
+      organizableTabs.forEach(tab => {
+        if (!tabsByWindow[tab.windowId]) {
+          tabsByWindow[tab.windowId] = [];
+        }
+        tabsByWindow[tab.windowId].push(tab);
+      });
+      
+      // Create groups in each window separately
+      const allGroups = [];
+      for (const [windowId, windowTabs] of Object.entries(tabsByWindow)) {
+        console.log(`Creating groups in window ${windowId} with ${windowTabs.length} tabs`);
+        const windowGroups = await this.tabManager.createGroups(categories, windowTabs);
+        allGroups.push(...windowGroups);
+      }
+      
+      const groups = allGroups;
+      console.log('Step 10: Groups created across all windows:', groups);
+      
+      console.log('Step 11: Saving group history...');
+      // Save group history
+      await this.storage.saveGroupHistory(groups);
+      console.log('Step 12: Complete!');
+      
       return {
-        id: tab.id,
-        title: tab.title || '',
-        url: tab.url,
-        domain: new URL(tab.url).hostname,
-        // Enhanced metadata for better categorization
-        description: metadata.description || '',
-        keywords: metadata.keywords || '',
-        ogType: metadata.ogType || '',
-        schemaType: metadata.schemaType || '',
-        mainHeading: metadata.mainHeading || '',
-        bodyPreview: metadata.bodyText || ''
+        message: 'Tabs organized successfully',
+        groupsCreated: groups.length,
+        tabsOrganized: organizableTabs.length
       };
-    }));
-    
-    // Use LLM to categorize tabs with enhanced metadata
-    const categories = await this.llm.categorizeTabs(tabInfo, this.maxGroups);
-    
-    // Create tab groups (will merge with existing groups if names match)
-    const groups = await this.tabManager.createGroups(categories, organizableTabs);
-    
-    // Save group history
-    await this.storage.saveGroupHistory(groups);
-    
-    return {
-      message: 'Tabs organized successfully',
-      groupsCreated: groups.length,
-      tabsOrganized: organizableTabs.length
-    };
+      
+    } catch (error) {
+      console.error('Error during organization:', error);
+      console.error('Stack trace:', error.stack);
+      throw error;
+    }
   }
 
   async handleNewTab(tab) {
