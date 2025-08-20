@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Icon Generator - TooTabTooFurious</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      padding: 20px;
+      background: #f8f9fa;
+    }
+    h1 {
+      color: #202124;
+      font-weight: 400;
+    }
+    .icon-container {
+      display: inline-block;
+      margin: 20px;
+      padding: 20px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(60, 64, 67, 0.3);
+    }
+    canvas {
+      display: block;
+      image-rendering: crisp-edges;
+    }
+    h3 {
+      margin-top: 0;
+      color: #5f6368;
+      font-size: 14px;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+  <h1>TooTabTooFurious Icon Generator</h1>
+  <p>Right-click each canvas and save as PNG with the specified filename.</p>
+  
+  <div class="icon-container">
+    <h3>icon16.png</h3>
+    <canvas id="icon16" width="16" height="16"></canvas>
+  </div>
+  
+  <div class="icon-container">
+    <h3>icon32.png</h3>
+    <canvas id="icon32" width="32" height="32"></canvas>
+  </div>
+  
+  <div class="icon-container">
+    <h3>icon48.png</h3>
+    <canvas id="icon48" width="48" height="48"></canvas>
+  </div>
+  
+  <div class="icon-container">
+    <h3>icon128.png</h3>
+    <canvas id="icon128" width="128" height="128"></canvas>
+  </div>
+
+  <script>
+    function drawIcon(canvas, size) {
+      const ctx = canvas.getContext('2d');
+      const scale = size / 128;
+      
+      // Clear canvas
+      ctx.clearRect(0, 0, size, size);
+      
+      // Enable anti-aliasing
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      
+      // Draw circle background
+      const centerX = size / 2;
+      const centerY = size / 2;
+      const radius = size * 0.47;
+      
+      // Create gradient
+      const gradient = ctx.createLinearGradient(0, 0, 0, size);
+      gradient.addColorStop(0, '#4285f4');
+      gradient.addColorStop(1, '#1a73e8');
+      
+      // Draw circle
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+      ctx.fillStyle = gradient;
+      ctx.fill();
+      
+      // Draw tabs (simplified for small sizes)
+      ctx.save();
+      ctx.translate(centerX, centerY);
+      
+      if (size >= 32) {
+        // Draw three tabs for larger icons
+        // First tab (back)
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        drawTab(ctx, -size * 0.27, -size * 0.2, size * 0.23, size * 0.27, size * 0.02);
+        
+        // Second tab (middle)
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+        drawTab(ctx, -size * 0.08, -size * 0.16, size * 0.23, size * 0.27, size * 0.02);
+        
+        // Third tab (front)
+        ctx.fillStyle = 'white';
+        drawTab(ctx, size * 0.12, -size * 0.12, size * 0.23, size * 0.27, size * 0.02);
+      } else {
+        // Simplified version for 16px icon
+        ctx.fillStyle = 'white';
+        ctx.fillRect(-size * 0.2, -size * 0.15, size * 0.4, size * 0.3);
+        
+        // Add a small line to suggest tabs
+        ctx.strokeStyle = '#1a73e8';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(-size * 0.2, -size * 0.05);
+        ctx.lineTo(size * 0.2, -size * 0.05);
+        ctx.stroke();
+      }
+      
+      ctx.restore();
+    }
+    
+    function drawTab(ctx, x, y, width, height, radius) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + width - radius, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+      ctx.lineTo(x + width, y + height);
+      ctx.lineTo(x, y + height);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+      ctx.fill();
+      
+      // Draw tab header
+      ctx.fillStyle = ctx.fillStyle; // Keep same color
+      ctx.fillRect(x, y, width, height * 0.25);
+    }
+    
+    // Generate all icon sizes
+    drawIcon(document.getElementById('icon16'), 16);
+    drawIcon(document.getElementById('icon32'), 32);
+    drawIcon(document.getElementById('icon48'), 48);
+    drawIcon(document.getElementById('icon128'), 128);
+  </script>
+</body>
+</html>

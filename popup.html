@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TooTabTooFurious</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Tab Organizer</h1>
+      <p class="subtitle">Smart tab grouping</p>
+    </header>
+
+    <div class="status-section">
+      <div id="apiStatus" class="status-indicator">
+        <span class="status-dot"></span>
+        <span class="status-text">Checking API...</span>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button id="organizeBtn" class="btn btn-primary">
+        Organize Tabs
+      </button>
+      
+      <button id="autoModeBtn" class="btn btn-secondary">
+        <span id="autoModeText">Enable Auto Mode</span>
+      </button>
+    </div>
+
+    <div class="stats">
+      <div class="stat-item">
+        <span class="stat-label">Open Tabs</span>
+        <span id="tabCount" class="stat-value">0</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Tab Groups</span>
+        <span id="groupCount" class="stat-value">0</span>
+      </div>
+    </div>
+
+    <div class="recent-groups" id="recentGroups">
+      <h3>Recent Groups</h3>
+      <div id="groupsList" class="groups-list"></div>
+    </div>
+
+    <footer>
+      <button id="settingsBtn" class="link-btn">Settings</button>
+      <button id="refreshBtn" class="link-btn">Refresh</button>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "name": "tootabtofurious",
+  "version": "1.0.0",
+  "description": "Chrome extension for AI-powered tab group management",
+  "scripts": {
+    "build": "node build.js",
+    "watch": "node build.js --watch",
+    "test": "echo \"No tests configured yet\"",
+    "lint": "echo \"No linting configured yet\""
+  },
+  "keywords": [
+    "chrome-extension",
+    "tab-management",
+    "openai",
+    "productivity"
+  ],
+  "author": "Shaun Patterson",
+  "license": "MIT"
+}
