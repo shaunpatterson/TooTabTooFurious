@@ -39,21 +39,15 @@
     </section>
 
     <section class="settings-section">
-      <h2>AI Model Settings</h2>
+      <h2>AI Model Status</h2>
       
-      <div class="setting-item">
-        <label for="modelSelect">AI Model</label>
-        <select id="modelSelect">
-          <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC">Llama 3.2 1B (Fast, Small)</option>
-          <option value="Phi-3.5-mini-instruct-q4f16_1-MLC">Phi 3.5 Mini (Balanced)</option>
-          <option value="gemma-2-2b-it-q4f16_1-MLC">Gemma 2 2B (Better Quality)</option>
-        </select>
-        <p class="setting-description">Choose the local AI model for tab categorization</p>
-      </div>
-
       <div class="model-status">
-        <span id="modelStatus">Model Status: </span>
-        <span id="modelStatusValue">Not Loaded</span>
+        <span id="modelStatus">Model: </span>
+        <span id="modelStatusValue">TinyLlama 1.1B</span>
+      </div>
+      
+      <div class="model-info">
+        <p class="setting-description">Using TinyLlama 1.1B model (~240MB) for intelligent tab categorization. The model downloads once on first use and caches locally.</p>
       </div>
     </section>
 

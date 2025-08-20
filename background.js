@@ -33,8 +33,35 @@ class TooTabTooFurious {
   }
 
   setupListeners() {
-    // Listen for messages from popup
+    // Listen for messages from popup and offscreen document
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+      // Handle LLM progress updates from offscreen document
+      if (request.type === 'llm-progress') {
+        this.llm.loadProgress = request.progress;
+        this.llm.loading = true;
+        console.log(`LLM Loading: ${request.progress}% - ${request.text}`);
+        return false;
+      } else if (request.type === 'llm-ready') {
+        this.llm.ready = true;
+        this.llm.loading = false;
+        this.llm.loadProgress = 100;
+        console.log('LLM Ready!');
+        return false;
+      } else if (request.type === 'llm-error') {
+        this.llm.loadError = request.error;
+        this.llm.loading = false;
+        console.error('LLM Error:', request.error);
+        return false;
+      } else if (request.type === 'llm-fallback') {
+        this.llm.ready = false;
+        this.llm.loading = false;
+        this.llm.loadError = request.error || 'No GPU - using smart patterns';
+        this.llm.offscreenReady = true; // Still ready to process with fallback
+        console.log('Using fallback categorization:', request.error);
+        return false;
+      }
+      
+      // Handle regular messages
       this.handleMessage(request, sender, sendResponse);
       return true; // Keep channel open for async response
     });
@@ -115,15 +142,34 @@ class TooTabTooFurious {
       return { message: 'No ungrouped tabs to organize' };
     }
     
-    // Get tab information for categorization
-    const tabInfo = organizableTabs.map(tab => ({
-      id: tab.id,
-      title: tab.title || '',
-      url: tab.url,
-      domain: new URL(tab.url).hostname
+    // Get enhanced tab information with metadata
+    const tabInfo = await Promise.all(organizableTabs.map(async tab => {
+      let metadata = {};
+      
+      // Try to get metadata from content script
+      try {
+        metadata = await chrome.tabs.sendMessage(tab.id, { action: 'extractMetadata' });
+      } catch (error) {
+        // Content script not available or failed
+        console.log(`Could not extract metadata from tab ${tab.id}:`, error.message);
+      }
+      
+      return {
+        id: tab.id,
+        title: tab.title || '',
+        url: tab.url,
+        domain: new URL(tab.url).hostname,
+        // Enhanced metadata for better categorization
+        description: metadata.description || '',
+        keywords: metadata.keywords || '',
+        ogType: metadata.ogType || '',
+        schemaType: metadata.schemaType || '',
+        mainHeading: metadata.mainHeading || '',
+        bodyPreview: metadata.bodyText || ''
+      };
     }));
     
-    // Use LLM to categorize tabs
+    // Use LLM to categorize tabs with enhanced metadata
     const categories = await this.llm.categorizeTabs(tabInfo, this.maxGroups);
     
     // Create tab groups (will merge with existing groups if names match)

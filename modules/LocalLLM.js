@@ -8,51 +8,66 @@ export class LocalLLM {
     this.ready = false;
     this.loading = false;
     this.loadError = null;
-    this.modelId = "Llama-3.2-1B-Instruct-q4f16_1-MLC"; // Small, fast model
+    this.offscreenReady = false;
+    // Smaller models available - TinyLlama is only ~240MB
+    this.modelId = "TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC"; // Smallest option
+    // Other options:
+    // "Llama-3.2-1B-Instruct-q4f16_1-MLC" (~500MB)
+    // "gemma-2-2b-it-q4f16_1-MLC" (~1.3GB)
+    // "Phi-3.5-mini-instruct-q4f16_1-MLC" (~2GB)
     this.loadProgress = 0;
+    this.progressCallback = null;
   }
 
   async initialize() {
-    if (this.loading || this.ready) {
+    if (this.loading || this.ready || this.offscreenReady) {
       return; // Already loading or loaded
     }
     
     try {
       this.loading = true;
       this.loadError = null;
-      console.log('🤖 Initializing local LLM...');
+      console.log('🤖 Creating offscreen document for categorization...');
       
-      // For now, skip WebLLM initialization to avoid download issues
-      // Use fallback categorization instead
-      console.log('Using rule-based categorization (WebLLM disabled for stability)');
-      this.ready = false; // Set to false to use fallback
+      // Create offscreen document for LLM processing
+      try {
+        await chrome.offscreen.createDocument({
+          url: 'offscreen.html',
+          reasons: ['WORKERS'],
+          justification: 'Run WebLLM for AI-powered tab categorization'
+        });
+        console.log('Offscreen document created');
+      } catch (error) {
+        // Document might already exist
+        console.log('Offscreen document already exists or error:', error.message);
+      }
+      
+      this.offscreenReady = true;
       this.loading = false;
       
-      /* Uncomment to enable WebLLM:
-      // Dynamically import WebLLM
-      const webllm = await import('https://esm.run/@mlc-ai/web-llm');
-      
-      // Create engine with the small model
-      this.engine = await webllm.CreateMLCEngine(
-        this.modelId,
-        {
-          initProgressCallback: (progress) => {
-            console.log(`Loading model: ${progress.text}`);
-            this.loadProgress = progress.progress || 0;
-          }
+      // Set a timeout to ensure we report status even if offscreen doesn't respond
+      setTimeout(() => {
+        if (this.loading && !this.ready) {
+          this.loading = false;
+          this.loadError = 'No GPU - using smart patterns';
+          console.log('Defaulting to pattern matching mode');
         }
-      );
+      }, 3000);
       
-      this.ready = true;
-      this.loading = false;
-      console.log('✅ Local LLM ready!');
-      */
     } catch (error) {
-      console.error('Failed to initialize LLM:', error);
-      this.loadError = error.message;
+      console.error('Failed to initialize offscreen document:', error);
+      this.loadError = 'Using smart patterns';
       this.ready = false;
       this.loading = false;
+      this.offscreenReady = true; // Can still use fallback
+      
+      // Fallback to rule-based
+      console.log('Using pattern-based categorization');
     }
+  }
+  
+  setProgressCallback(callback) {
+    this.progressCallback = callback;
   }
 
   isReady() {
@@ -73,82 +88,94 @@ export class LocalLLM {
         model: this.modelId
       };
     } else if (this.loadError) {
+      // If there's an error but we're using fallback, report as fallback
+      if (this.loadError.includes('GPU') || this.loadError.includes('pattern')) {
+        return {
+          status: 'fallback',
+          message: 'Using smart pattern matching'
+        };
+      }
       return {
         status: 'error',
         message: this.loadError
       };
     } else {
+      // Default to fallback mode
       return {
         status: 'fallback',
-        message: 'Using rule-based categorization'
+        message: 'Using smart pattern matching'
       };
     }
   }
 
   async categorizeTabs(tabs, maxGroups = 5) {
-    if (!this.ready) {
-      return this.fallbackCategorization(tabs, maxGroups);
-    }
-
-    try {
-      // Create a prompt for the LLM
-      const prompt = this.createCategorizationPrompt(tabs, maxGroups);
-      
-      // Get response from local model
-      const response = await this.engine.chat.completions.create({
-        messages: [
-          {
-            role: "system",
-            content: "You categorize browser tabs into groups. Respond only with JSON."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        temperature: 0.3,
-        max_tokens: 500
-      });
-
-      const result = response.choices[0].message.content;
-      
-      // Parse the JSON response
+    // Try to use offscreen document for LLM processing
+    if (this.offscreenReady) {
       try {
-        const categories = JSON.parse(result);
-        return this.validateCategories(categories, tabs);
-      } catch (parseError) {
-        console.error('Failed to parse LLM response:', parseError);
+        // Send categorization request to offscreen document
+        const response = await chrome.runtime.sendMessage({
+          action: 'categorize',
+          tabs: tabs,
+          maxGroups: maxGroups
+        });
+        
+        if (response && response.groups) {
+          return this.validateCategories(response, tabs);
+        } else if (response && response.error) {
+          console.error('Offscreen LLM error:', response.error);
+          return this.fallbackCategorization(tabs, maxGroups);
+        }
+      } catch (error) {
+        console.error('Failed to communicate with offscreen document:', error);
         return this.fallbackCategorization(tabs, maxGroups);
       }
-    } catch (error) {
-      console.error('LLM categorization failed:', error);
-      return this.fallbackCategorization(tabs, maxGroups);
     }
+    
+    // Fallback to rule-based categorization
+    return this.fallbackCategorization(tabs, maxGroups);
   }
 
   createCategorizationPrompt(tabs, maxGroups) {
-    const tabList = tabs.map(t => 
-      `- ${t.domain}: ${t.title.substring(0, 50)}`
-    ).join('\n');
+    // Include enhanced metadata in the prompt
+    const tabList = tabs.map(t => {
+      let info = `[${t.id}] ${t.domain}: ${t.title.substring(0, 50)}`;
+      
+      // Add relevant metadata if available
+      if (t.description) {
+        info += ` | Desc: "${t.description.substring(0, 60)}"`;
+      }
+      if (t.keywords) {
+        info += ` | Keywords: ${t.keywords.substring(0, 40)}`;
+      }
+      if (t.ogType) {
+        info += ` | Type: ${t.ogType}`;
+      }
+      if (t.schemaType) {
+        info += ` | Schema: ${t.schemaType}`;
+      }
+      
+      return info;
+    }).join('\n');
 
-    return `Categorize these browser tabs into at most ${maxGroups} groups.
+    return `Categorize these browser tabs into at most ${maxGroups} groups based on their content and metadata.
 Use short names (1-2 words, PascalCase if 2 words, no spaces).
 
-Tabs:
+Tabs with metadata:
 ${tabList}
 
+Consider the description, keywords, and content type when categorizing.
 Return JSON only:
 {
   "groups": [
     {
       "name": "GroupName",
       "color": "blue|red|yellow|green|pink|purple|cyan|orange",
-      "tabIds": [...]
+      "tabIds": [tab_ids_here]
     }
   ]
 }
 
-Common groups: Dev, Social, Work, Entertainment, Shopping, News, Research, Docs`;
+Common groups: Dev, Social, Work, Entertainment, Shopping, News, Research, Docs, Education, Finance`;
   }
 
   async findBestGroup(tab, existingGroups) {

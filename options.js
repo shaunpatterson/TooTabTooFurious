@@ -3,7 +3,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     maxGroups: document.getElementById('maxGroups'),
     autoMode: document.getElementById('autoMode'),
     collapseGroups: document.getElementById('collapseGroups'),
-    modelSelect: document.getElementById('modelSelect'),
     modelStatusValue: document.getElementById('modelStatusValue'),
     totalOrganizations: document.getElementById('totalOrganizations'),
     totalTabsOrganized: document.getElementById('totalTabsOrganized'),
@@ -15,6 +14,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     importFile: document.getElementById('importFile'),
     clearHistoryBtn: document.getElementById('clearHistoryBtn')
   };
+  
+  // Log any missing elements for debugging
+  for (const [key, element] of Object.entries(elements)) {
+    if (!element) {
+      console.warn(`Element not found: ${key}`);
+    }
+  }
 
   let settings = {};
   let stats = {};
@@ -28,7 +34,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         autoMode: false,
         maxGroups: 5,
         collapseGroups: false,
-        llmModel: 'Llama-3.2-1B-Instruct-q4f16_1-MLC'
+        llmModel: 'TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC'
       };
       
       stats = result.tttf_stats || {
@@ -42,7 +48,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       elements.maxGroups.value = settings.maxGroups;
       elements.autoMode.checked = settings.autoMode;
       elements.collapseGroups.checked = settings.collapseGroups;
-      elements.modelSelect.value = settings.llmModel;
 
       // Update stats
       updateStats();
@@ -60,7 +65,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       settings.maxGroups = parseInt(elements.maxGroups.value);
       settings.autoMode = elements.autoMode.checked;
       settings.collapseGroups = elements.collapseGroups.checked;
-      settings.llmModel = elements.modelSelect.value;
 
       await chrome.storage.local.set({ tttf_settings: settings });
       
@@ -76,19 +80,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
 
       // Show success feedback
-      elements.saveBtn.textContent = '✅ Saved!';
+      elements.saveBtn.textContent = 'Saved!';
       elements.saveBtn.style.background = 'linear-gradient(135deg, #34A853, #188038)';
       
       setTimeout(() => {
-        elements.saveBtn.textContent = '💾 Save Settings';
+        elements.saveBtn.textContent = 'Save Settings';
         elements.saveBtn.style.background = '';
       }, 2000);
     } catch (error) {
       console.error('Failed to save settings:', error);
-      elements.saveBtn.textContent = '❌ Error';
+      elements.saveBtn.textContent = 'Error';
       
       setTimeout(() => {
-        elements.saveBtn.textContent = '💾 Save Settings';
+        elements.saveBtn.textContent = 'Save Settings';
       }, 2000);
     }
   }
@@ -248,21 +252,35 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Setup event listeners
   function setupEventListeners() {
-    elements.saveBtn.addEventListener('click', saveSettings);
-    elements.exportBtn.addEventListener('click', exportSettings);
-    elements.importBtn.addEventListener('click', () => elements.importFile.click());
-    elements.importFile.addEventListener('change', (e) => {
-      if (e.target.files.length > 0) {
-        importSettings(e.target.files[0]);
-      }
-    });
-    elements.clearHistoryBtn.addEventListener('click', clearHistory);
+    // Check if elements exist before adding listeners
+    if (elements.saveBtn) {
+      elements.saveBtn.addEventListener('click', saveSettings);
+    }
+    if (elements.exportBtn) {
+      elements.exportBtn.addEventListener('click', exportSettings);
+    }
+    if (elements.importBtn && elements.importFile) {
+      elements.importBtn.addEventListener('click', () => elements.importFile.click());
+      elements.importFile.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+          importSettings(e.target.files[0]);
+        }
+      });
+    }
+    if (elements.clearHistoryBtn) {
+      elements.clearHistoryBtn.addEventListener('click', clearHistory);
+    }
 
     // Auto-save on change
-    elements.maxGroups.addEventListener('change', saveSettings);
-    elements.autoMode.addEventListener('change', saveSettings);
-    elements.collapseGroups.addEventListener('change', saveSettings);
-    elements.modelSelect.addEventListener('change', saveSettings);
+    if (elements.maxGroups) {
+      elements.maxGroups.addEventListener('change', saveSettings);
+    }
+    if (elements.autoMode) {
+      elements.autoMode.addEventListener('change', saveSettings);
+    }
+    if (elements.collapseGroups) {
+      elements.collapseGroups.addEventListener('change', saveSettings);
+    }
   }
 
   // Initialize

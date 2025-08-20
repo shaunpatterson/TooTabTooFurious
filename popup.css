@@ -62,6 +62,34 @@ header h1 {
   background: #ea4335;
 }
 
+.progress-bar {
+  margin-top: 8px;
+  height: 20px;
+  background: #e8eaed;
+  border-radius: 10px;
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #1a73e8, #4285f4);
+  border-radius: 10px;
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 11px;
+  font-weight: 500;
+  color: #202124;
+  z-index: 1;
+}
+
 .controls {
   display: flex;
   flex-direction: column;

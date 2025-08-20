@@ -1,38 +1,40 @@
 # TooTabTooFurious 🏁
 
-A Chrome extension that uses local AI to automatically organize your browser tabs into smart groups. No API keys required - runs entirely in your browser!
+A Chrome extension that automatically organizes your browser tabs into smart groups using intelligent categorization. Clean, minimal design that matches Chrome's aesthetic.
 
 ## Features
 
-- **🤖 Local AI-Powered**: Uses WebLLM to run small language models directly in Chrome
-- **🚀 Auto-Organization**: Instantly categorize and group all open tabs
-- **⚡ Auto Mode**: Automatically organize new tabs as you browse
-- **🎯 Smart Categorization**: Groups tabs into categories like Dev, Social, Entertainment, Work, etc.
-- **🎨 Customizable**: Set maximum number of groups (2-10)
-- **🔒 Privacy-First**: No data leaves your browser - everything runs locally
-- **📊 Statistics**: Track your tab organization habits
+- **Smart Tab Grouping**: Automatically organizes tabs into logical categories (Dev, Social, Entertainment, Work, etc.)
+- **Duplicate Prevention**: Merges tabs into existing groups instead of creating duplicates
+- **Auto Mode**: Automatically organize new tabs as you browse
+- **Enhanced Metadata**: Analyzes page descriptions, keywords, and content for better categorization
+- **Configurable Groups**: Set maximum number of groups (2-10, default: 5)
+- **Clean UI**: Minimal design that matches Chrome's default theme
+- **Statistics Tracking**: Monitor your tab organization habits
 
 ## Installation
 
-### From Source
-1. Clone this repository:
+1. **Download or Clone the Repository**:
    ```bash
    git clone https://github.com/shaunpatterson/TooTabTooFurious.git
    cd TooTabTooFurious
    ```
 
-2. Open Chrome and navigate to `chrome://extensions/`
+2. **Generate Extension Icons** (if not already present):
+   - Open `icons/generate-icons.html` in Chrome
+   - Right-click each canvas and save as PNG with the specified filename (icon16.png, icon32.png, icon48.png, icon128.png)
+   - Save them in the `icons/` directory
 
-3. Enable "Developer mode" in the top right
+3. **Load the Extension in Chrome**:
+   - Open Chrome and navigate to `chrome://extensions/`
+   - Enable "Developer mode" toggle in the top right
+   - Click "Load unpacked"
+   - Select the TooTabTooFurious directory
+   - The extension icon will appear in your toolbar
 
-4. Click "Load unpacked" and select the TooTabTooFurious directory
-
-5. The extension icon will appear in your toolbar!
-
-### Generate Icons
-1. Open `icons/generate-icons.html` in Chrome
-2. Right-click each canvas and save as PNG with the specified filename
-3. Or use the included SVG file to generate PNGs at different sizes
+4. **Pin the Extension** (recommended):
+   - Click the puzzle piece icon in Chrome toolbar
+   - Click the pin icon next to "TooTabTooFurious"
 
 ## Usage
 
@@ -42,52 +44,57 @@ A Chrome extension that uses local AI to automatically organize your browser tab
 3. Enable "Auto Mode" to automatically organize new tabs as you browse
 
 ### Settings
-- **Max Groups**: Set the maximum number of tab groups (2-10, default: 5)
-- **Auto Mode**: Automatically organize new tabs as they're opened
-- **Collapse Groups**: Automatically collapse tab groups after creation
-- **AI Model**: Choose between different local models:
-  - Llama 3.2 1B (Fast, Small)
-  - Phi 3.5 Mini (Balanced)
-  - Gemma 2 2B (Better Quality)
+
+Access settings by clicking the extension icon and then "Settings", or right-click the extension icon and select "Options".
+
+- **Maximum Groups**: Set how many tab groups to create (2-10, default: 5)
+- **Auto Mode**: Toggle automatic organization of new tabs as you browse
+- **Collapse Groups**: Automatically collapse tab groups after creation to save space
 
 ## How It Works
 
-TooTabTooFurious uses WebLLM to run a small language model directly in your browser. When you organize tabs:
+The extension uses intelligent pattern matching and metadata analysis to categorize your tabs:
 
-1. The extension analyzes all open tabs (title, URL, domain)
-2. The local AI model categorizes tabs into logical groups
-3. Chrome's Tab Groups API creates colored, named groups
-4. Your tabs are instantly organized!
+1. **Tab Analysis**: Examines URLs, titles, and page metadata (descriptions, keywords, Open Graph tags)
+2. **Smart Categorization**: Groups tabs into categories based on domain patterns and content
+3. **Duplicate Prevention**: Checks for existing groups and merges tabs instead of creating duplicates
+4. **Chrome Tab Groups**: Uses Chrome's native tab grouping API with color-coded categories
 
-### Default Categories
-- **Dev**: GitHub, GitLab, StackOverflow, localhost
-- **Social**: Facebook, Twitter, Instagram, LinkedIn
-- **Entertainment**: YouTube, Netflix, Spotify, Twitch
-- **Work**: Gmail, Google Docs, Office, Notion
-- **Cloud**: AWS, Azure, GCP consoles
-- **Shopping**: Amazon, eBay, Etsy
-- **News**: CNN, BBC, TechCrunch
+### Categories
 
-## Privacy
+The extension recognizes these common categories:
+- **Dev**: GitHub, GitLab, StackOverflow, localhost, CodePen, Replit
+- **Social**: Facebook, Twitter/X, Instagram, LinkedIn, Reddit, Discord
+- **Entertainment**: YouTube, Netflix, Spotify, Twitch, Disney+
+- **Work**: Gmail, Outlook, Google Docs, Notion, Trello, Jira
+- **Cloud**: AWS, Azure, GCP, cloud consoles
+- **Shopping**: Amazon, eBay, Etsy, Walmart
+- **News**: CNN, BBC, Reuters, TechCrunch
+- **Docs**: Documentation sites, wikis, MDN
+- **General**: Everything else
 
-- ✅ **100% Local**: All AI processing happens in your browser
-- ✅ **No API Keys**: No external services or API keys required
-- ✅ **No Data Collection**: Your browsing data never leaves your device
-- ✅ **Open Source**: Full transparency - review the code yourself
+## Configuration
 
 ## Technical Details
 
-### Technologies Used
-- **WebLLM**: For running LLMs locally in the browser
-- **Chrome Extensions Manifest V3**: Modern extension architecture
-- **Chrome Tab Groups API**: Native tab grouping functionality
-- **ES Modules**: Modern JavaScript module system
+### Architecture
+- **Chrome Extensions Manifest V3**: Modern, secure extension architecture
+- **Service Worker**: Background script for tab management
+- **Offscreen Document**: Handles compute-intensive tasks
+- **Content Script**: Extracts page metadata for enhanced categorization
+- **Chrome APIs**: Uses Tabs, Tab Groups, Storage, and Offscreen APIs
 
-### Local AI Models
-The extension uses quantized models optimized for browser execution:
-- Models are downloaded once and cached locally
-- Typical model size: 500MB-1GB
-- Inference speed: 10-50 tokens/second
+### Categorization Engine
+The extension uses a hybrid approach:
+1. **Metadata Extraction**: Content script extracts page descriptions, keywords, Open Graph tags
+2. **Pattern Matching**: Analyzes domains and titles against known patterns
+3. **Smart Grouping**: Creates logical groups while preventing duplicates
+
+### Privacy & Performance
+- All processing happens locally in your browser
+- No external API calls or data transmission
+- Lightweight and fast - instant categorization
+- Minimal resource usage
 
 ## Development
 
@@ -108,6 +115,31 @@ TooTabTooFurious/
 ### Building from Source
 No build step required! The extension runs directly from source.
 
+## Troubleshooting
+
+### Extension not working?
+1. Make sure you've enabled Developer Mode in Chrome
+2. Check that all required permissions are granted
+3. Try reloading the extension from chrome://extensions/
+
+### Tabs not grouping?
+1. Verify Chrome tab groups are enabled (should be by default)
+2. Check that you have ungrouped tabs (extension only organizes tabs not already in groups)
+3. Try clicking "Refresh" in the popup
+
+### Icons not showing?
+1. Generate icons using the included HTML file
+2. Save as PNG files in the icons/ directory
+3. Reload the extension
+
+## Future Enhancements
+
+- WebLLM integration for AI-powered categorization (currently uses pattern matching)
+- Custom category creation and rules
+- Keyboard shortcuts
+- Export/import settings
+- Sync across devices
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
@@ -122,4 +154,4 @@ Created by Shaun Patterson
 
 ---
 
-**Note**: First-time loading of the AI model may take a few minutes as it downloads to your browser cache. Subsequent uses will be instant!
+**Note**: The extension uses intelligent pattern matching for categorization. If you have a GPU with WebGPU support, you can optionally enable AI-powered categorization using TinyLlama by running the `install-with-llm.sh` script.

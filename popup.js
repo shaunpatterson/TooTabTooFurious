@@ -3,6 +3,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     apiStatus: document.getElementById('apiStatus'),
     statusDot: document.querySelector('.status-dot'),
     statusText: document.querySelector('.status-text'),
+    progressBar: document.getElementById('progressBar'),
+    progressFill: document.querySelector('.progress-fill'),
+    progressText: document.querySelector('.progress-text'),
     organizeBtn: document.getElementById('organizeBtn'),
     autoModeBtn: document.getElementById('autoModeBtn'),
     autoModeText: document.getElementById('autoModeText'),
@@ -21,6 +24,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     await updateStatus();
     await loadRecentGroups();
     setupEventListeners();
+    
+    // Update status periodically in case initial check fails
+    setTimeout(updateStatus, 1000);
+    setTimeout(updateStatus, 3000);
   }
 
   // Update status from background
@@ -31,13 +38,52 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (response.success) {
         const { status } = response;
         
-        // Update LLM status
-        if (status.llmReady) {
-          elements.statusDot.classList.add('active');
-          elements.statusText.textContent = 'AI Ready';
+        // Update LLM status based on detailed status
+        if (status.llmStatus) {
+          const llmStatus = status.llmStatus;
+          
+          switch (llmStatus.status) {
+            case 'loading':
+              elements.statusDot.classList.remove('active', 'error');
+              elements.statusText.textContent = 'Loading AI Model...';
+              elements.progressBar.style.display = 'block';
+              elements.progressFill.style.width = `${llmStatus.progress || 0}%`;
+              elements.progressText.textContent = `${llmStatus.progress || 0}%`;
+              break;
+              
+            case 'ready':
+              elements.statusDot.classList.add('active');
+              elements.statusDot.classList.remove('error');
+              elements.statusText.textContent = 'AI Ready (TinyLlama)';
+              elements.progressBar.style.display = 'none';
+              break;
+              
+            case 'fallback':
+              elements.statusDot.classList.remove('error');
+              elements.statusDot.classList.add('active');
+              elements.statusText.textContent = 'Smart Pattern Mode';
+              elements.progressBar.style.display = 'none';
+              break;
+              
+            case 'error':
+              elements.statusDot.classList.add('error');
+              elements.statusText.textContent = 'AI Load Failed';
+              elements.progressBar.style.display = 'none';
+              break;
+              
+            default:
+              // Default to pattern mode if status is unclear
+              elements.statusDot.classList.remove('error');
+              elements.statusDot.classList.add('active');
+              elements.statusText.textContent = 'Smart Pattern Mode';
+              elements.progressBar.style.display = 'none';
+          }
         } else {
-          elements.statusDot.classList.remove('active');
-          elements.statusText.textContent = 'Loading AI...';
+          // No llmStatus, default to pattern mode
+          elements.statusDot.classList.remove('error');
+          elements.statusDot.classList.add('active');
+          elements.statusText.textContent = 'Smart Pattern Mode';
+          elements.progressBar.style.display = 'none';
         }
         
         // Update auto mode
@@ -55,6 +101,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.error('Failed to get status:', error);
       elements.statusDot.classList.add('error');
       elements.statusText.textContent = 'Error';
+      elements.progressBar.style.display = 'none';
     }
   }
 
