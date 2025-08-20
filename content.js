@@ -14,8 +14,11 @@ function extractPageMetadata() {
     ogTitle: '',
     ogDescription: '',
     ogType: '',
+    ogSiteName: '',
     articleSection: '',
     articleTag: '',
+    applicationName: '',
+    generator: '',
     
     // Structured data
     schemaType: '',
@@ -53,11 +56,20 @@ function extractPageMetadata() {
       case 'og:type':
         metadata.ogType = content;
         break;
+      case 'og:site_name':
+        metadata.ogSiteName = content.substring(0, 50);
+        break;
       case 'article:section':
         metadata.articleSection = content;
         break;
       case 'article:tag':
         metadata.articleTag = content;
+        break;
+      case 'application-name':
+        metadata.applicationName = content.substring(0, 50);
+        break;
+      case 'generator':
+        metadata.generator = content.substring(0, 50);
         break;
     }
   }

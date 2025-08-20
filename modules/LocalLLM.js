@@ -1,19 +1,51 @@
-// LocalLLM with WebGPU support (via WebLLM) and CPU fallback (via transformers.js)
-import { pipeline, env } from '@xenova/transformers';
+// LocalLLM with WebGPU support (via WebLLM) and pattern fallback
 import * as webllm from '@mlc-ai/web-llm';
-
-// Configure transformers.js for Chrome extension environment
-env.allowLocalModels = false;
-env.useBrowserCache = true;
 
 export class LocalLLM {
   constructor() {
     this.ready = false;
     this.loading = false;
     this.loadError = null;
-    this.mode = null; // 'gpu', 'cpu', or 'pattern'
+    this.mode = null; // 'gpu' or 'pattern'
     this.engine = null; // WebLLM engine for GPU
-    this.classifier = null; // transformers.js classifier for CPU
+
+    // Central category configuration
+    this.VALID_CATEGORIES = ['Dev', 'Social', 'Entertainment', 'Shopping', 'Work',
+                             'News', 'Cloud', 'Docs', 'Finance', 'AI', 'Education',
+                             'Communication', 'Health', 'Travel', 'Design', 'Analytics',
+                             'Security', 'Marketing', 'Government', 'Food', 'Photography',
+                             'Real Estate', 'HR', 'Legal', 'Insurance', 'Utilities',
+                             'Other'];
+
+    this.CATEGORY_COLORS = {
+      'Dev': 'blue',
+      'Social': 'pink',
+      'Entertainment': 'red',
+      'Shopping': 'orange',
+      'Work': 'green',
+      'News': 'purple',
+      'Cloud': 'cyan',
+      'Docs': 'yellow',
+      'Finance': 'green',
+      'AI': 'purple',
+      'Education': 'blue',
+      'Communication': 'pink',
+      'Health': 'green',
+      'Travel': 'orange',
+      'Design': 'purple',
+      'Analytics': 'blue',
+      'Security': 'red',
+      'Marketing': 'orange',
+      'Government': 'grey',
+      'Food': 'yellow',
+      'Photography': 'purple',
+      'Real Estate': 'green',
+      'HR': 'blue',
+      'Legal': 'grey',
+      'Insurance': 'green',
+      'Utilities': 'grey',
+      'Other': 'grey'
+    };
   }
 
   async initialize() {
@@ -33,7 +65,9 @@ export class LocalLLM {
           // - "Phi-3.5-mini-instruct-q4f16_1-MLC" (3.8B params, Microsoft)
           // - "gemma-2-2b-it-q4f16_1-MLC" (2B params, Google)
           // - "Qwen2.5-3B-Instruct-q4f16_1-MLC" (3B params, Alibaba)
-          const modelId = "Llama-3.2-3B-Instruct-q4f16_1-MLC";
+          // - "Llama-3.1-8B-Instruct-q4f16_1-MLC" (8B params, largest available)
+          // - "Qwen2.5-7B-Instruct-q4f16_1-MLC" (7B params, very capable)
+          const modelId = "Llama-3.1-8B-Instruct-q4f16_1-MLC"; // Using the 8B model for better accuracy
 
           this.engine = await webllm.CreateMLCEngine(modelId, {
             initProgressCallback: (progress) => {
@@ -53,34 +87,10 @@ export class LocalLLM {
         }
       }
 
-      // Fallback to transformers.js for CPU-based inference
-      try {
-        console.log('Loading transformers.js for CPU inference...');
-
-        // Use a smaller model for faster loading
-        this.classifier = await pipeline(
-          'zero-shot-classification',
-          'Xenova/mobilebert-uncased-mnli', // Smaller, faster model
-          {
-            progress_callback: (progress) => {
-              if (progress.status === 'progress') {
-                const percent = Math.round((progress.loaded / progress.total) * 100);
-                console.log(`Loading CPU model: ${percent}%`);
-              }
-            }
-          }
-        );
-
-        this.ready = true;
-        this.mode = 'cpu';
-        console.log('✅ CPU model loaded successfully');
-
-      } catch (cpuError) {
-        console.log('Failed to load transformers.js:', cpuError.message);
-        console.log('Falling back to pattern-based categorization');
-        this.mode = 'pattern';
-        this.ready = true;
-      }
+      // Fallback to pattern-based categorization
+      console.log('WebGPU not available or failed to load. Falling back to pattern-based categorization');
+      this.mode = 'pattern';
+      this.ready = true;
 
     } catch (error) {
       console.error('Failed to initialize LocalLLM:', error);
@@ -105,7 +115,6 @@ export class LocalLLM {
     } else if (this.ready) {
       const modeMessages = {
         'gpu': 'WebGPU acceleration active',
-        'cpu': 'CPU model active',
         'pattern': 'Smart pattern matching active'
       };
       return {
@@ -130,8 +139,6 @@ export class LocalLLM {
 
     if (this.mode === 'gpu' && this.engine) {
       return this.gpuCategorization(tabs, maxGroups);
-    } else if (this.mode === 'cpu' && this.classifier) {
-      return this.cpuCategorization(tabs, maxGroups);
     } else {
       return this.patternBasedCategorization(tabs, maxGroups);
     }
@@ -139,33 +146,44 @@ export class LocalLLM {
 
   async gpuCategorization(tabs, maxGroups, retryCount = 0) {
     try {
-      // Create a prompt for the LLM
-      const tabList = tabs.map(t =>
-        `[${t.id}] ${t.domain}: ${t.title.substring(0, 250)}`
-      ).join('\n');
+      // Create a prompt for the LLM with enhanced metadata
+      const tabList = tabs.map(t => {
+        let info = `[${t.id}] ${t.domain}: ${t.title.substring(0, 50)}`;
+        
+        // Add metadata hints if available
+        const hints = [];
+        if (t.ogSiteName) hints.push(`site:${t.ogSiteName}`);
+        if (t.ogType) hints.push(`type:${t.ogType}`);
+        if (t.schemaType) hints.push(`schema:${t.schemaType}`);
+        if (t.applicationName) hints.push(`app:${t.applicationName}`);
+        if (t.generator) hints.push(`tech:${t.generator}`);
+        if (t.keywords) hints.push(`keywords:${t.keywords.substring(0, 30)}`);
+        
+        if (hints.length > 0) {
+          info += ` (${hints.join(', ')})`;
+        }
+        
+        return info;
+      }).join('\n');
 
-      // Create a clear, structured prompt
-      const prompt = `Categorize these browser tabs into groups.
+      // Create a simpler prompt for tab categorization
+      const prompt = `Categorize these browser tabs into appropriate categories.
 
-Input tabs:
+Tabs to categorize:
 ${tabList}
 
-Task: Group these tabs by their purpose and return JSON.
+Available categories: ${this.VALID_CATEGORIES.join(', ')}
 
-Available categories: AI, Dev, Cloud, Work, Docs, News, Finance, Social, Entertainment, Shopping, Education, Gaming, Other
-Available colors: blue, red, yellow, green, pink, purple, cyan, orange, grey
+Return ONLY a JSON object where each key is a tab ID and each value is ONE category from the list above.
+Format: {"tabId":"category"}
 
-Guidelines:
-- github.com → Dev (blue)
-- claude.ai, huggingface.co → AI (purple)
-- portal.azure.com, azurediagrams.com → Cloud (cyan)
-- docs.*, *.documentation → Docs (yellow)
-- atlassian.net, jira → Work (green)
+Example output: {"1803249002":"AI","1803249030":"Docs","1803249067":"Dev"}
 
-Return a JSON object with this structure:
-{"groups":[{"name":"<category>","color":"<color>","tabIds":[<actual_tab_ids>]}]}
-
-Important: Use the actual tab ID numbers from the input list above.`;
+Important: 
+- Use ONLY the tab IDs shown above
+- Each tab ID must appear exactly once
+- Use ONLY categories from the provided list
+- Return ONLY valid JSON, no other text`;
 
       console.log(`📝 LLM GPU Prompt (attempt ${retryCount + 1}/3):`);
       console.log(prompt);
@@ -183,7 +201,7 @@ Important: Use the actual tab ID numbers from the input list above.`;
           }
         ],
         temperature: 0.0,
-        max_tokens: 6000
+        max_tokens: Math.min(tabs.length * 30 + 200, 6000) // Dynamically size based on tab count
       });
 
       let resultText = response.choices[0].message.content;
@@ -232,6 +250,31 @@ Important: Use the actual tab ID numbers from the input list above.`;
       // Try to parse the JSON
       let result;
       try {
+        // First, try to fix common issues with duplicate "groups" keys
+        // Convert {"groups":[...],"groups":[...]} to {"groups":[...,...]}
+        if (jsonStr.includes(',"groups":')) {
+          console.log('Detected duplicate "groups" keys, attempting to fix...');
+
+          // Extract all groups arrays
+          const groupArrays = [];
+          const regex = /"groups"\s*:\s*\[(.*?)\]/g;
+          let match;
+          while ((match = regex.exec(jsonStr)) !== null) {
+            try {
+              const groupContent = '[' + match[1] + ']';
+              const parsed = JSON.parse(groupContent);
+              groupArrays.push(...parsed);
+            } catch (e) {
+              console.error('Failed to parse group segment:', e);
+            }
+          }
+
+          if (groupArrays.length > 0) {
+            jsonStr = JSON.stringify({ groups: groupArrays });
+            console.log('Fixed JSON structure, merged multiple groups arrays');
+          }
+        }
+
         result = JSON.parse(jsonStr);
       } catch (parseError) {
         console.error('JSON parse error:', parseError.message);
@@ -248,25 +291,76 @@ Important: Use the actual tab ID numbers from the input list above.`;
         throw new Error(`Failed to parse JSON after ${retryCount + 1} attempts: ${parseError.message}`);
       }
 
-      // Validate the result structure
-      if (!result.groups || !Array.isArray(result.groups)) {
-        throw new Error('Invalid response structure: missing groups array');
+      // Process the dictionary response (tabId -> category mapping)
+      console.log('🤖 Processing tab-to-category mapping');
+
+      // Build groups from the mapping
+      const groupMap = new Map();
+      const colorMap = this.CATEGORY_COLORS;
+      const processedTabIds = new Set(); // Track processed tabs to avoid duplicates
+
+      // Create a set of valid tab IDs for validation
+      const validTabIds = new Set(tabs.map(t => t.id));
+      
+      // Process each tab assignment
+      for (const [tabIdStr, category] of Object.entries(result)) {
+        const tabId = parseInt(tabIdStr);
+        if (isNaN(tabId)) continue;
+        
+        // Skip if this tab ID doesn't exist in our input (LLM hallucination)
+        if (!validTabIds.has(tabId)) {
+          console.warn(`Skipping non-existent tab ID ${tabId} from LLM response`);
+          continue;
+        }
+        
+        // Skip if we've already processed this tab ID (handles LLM repetition bug)
+        if (processedTabIds.has(tabId)) {
+          console.warn(`Skipping duplicate tab ID ${tabId} in LLM response`);
+          continue;
+        }
+        processedTabIds.add(tabId);
+
+        // Validate and normalize category name
+        const validCategory = this.validateSingleCategoryName(category);
+
+        if (!groupMap.has(validCategory)) {
+          groupMap.set(validCategory, {
+            name: validCategory,
+            color: colorMap[validCategory] || 'grey',
+            tabIds: []
+          });
+        }
+
+        groupMap.get(validCategory).tabIds.push(tabId);
+      }
+      
+      // Check if we missed any tabs due to truncation or hallucination
+      const missingTabs = tabs.filter(t => !processedTabIds.has(t.id));
+      if (missingTabs.length > 0) {
+        console.warn(`LLM response missing ${missingTabs.length} tabs out of ${tabs.length} total`);
+        
+        // If more than 50% of tabs are missing, the LLM response is too unreliable
+        if (missingTabs.length > tabs.length * 0.5) {
+          console.error('LLM response too unreliable (>50% tabs missing), falling back to pattern-based categorization');
+          return this.patternBasedCategorization(tabs, maxGroups);
+        }
+        
+        // Otherwise, add missing tabs to Other category
+        if (!groupMap.has('Other')) {
+          groupMap.set('Other', {
+            name: 'Other',
+            color: 'grey',
+            tabIds: []
+          });
+        }
+        groupMap.get('Other').tabIds.push(...missingTabs.map(t => t.id));
       }
 
-      // Log parsed groups before cleanup
-      console.log('🤖 LLM GPU Categorization Results (before cleanup):');
-      result.groups.forEach(group => {
-        console.log(`  - ${group.name}: ${group.tabIds?.length || 0} tabs`);
-      });
+      // Convert to array
+      const groups = Array.from(groupMap.values());
 
-      // Validate group names and fix any invalid ones
-      const validatedGroups = this.validateGroupNames(result.groups);
-
-      // Ensure no duplicate groups
-      const groups = this.deduplicateGroups(validatedGroups);
-
-      // Log final groups after cleanup
-      console.log('🤖 LLM GPU Final Groups (after cleanup):');
+      // Log final groups
+      console.log('🤖 LLM GPU Final Groups:');
       groups.forEach(group => {
         console.log(`  - ${group.name}: ${group.tabIds.length} tabs`);
       });
@@ -280,106 +374,16 @@ Important: Use the actual tab ID numbers from the input list above.`;
     }
   }
 
-  async cpuCategorization(tabs, maxGroups) {
-    try {
-      console.log('📝 CPU Categorization - Processing tabs:');
-      tabs.forEach(tab => {
-        console.log(`  [${tab.id}] ${tab.domain}: ${tab.title}`);
-      });
-
-      const candidateLabels = [
-        'development programming coding',
-        'social media networking',
-        'entertainment video music streaming',
-        'shopping ecommerce retail',
-        'work productivity office email',
-        'news media journalism',
-        'cloud computing services',
-        'documentation reference learning',
-        'finance banking money',
-        'artificial intelligence machine learning',
-        'education course tutorial',
-        'gaming video games'
-      ];
-
-      const labelToCategory = {
-        'development programming coding': { name: 'Dev', color: 'blue' },
-        'social media networking': { name: 'Social', color: 'pink' },
-        'entertainment video music streaming': { name: 'Entertainment', color: 'red' },
-        'shopping ecommerce retail': { name: 'Shopping', color: 'orange' },
-        'work productivity office email': { name: 'Work', color: 'green' },
-        'news media journalism': { name: 'News', color: 'purple' },
-        'cloud computing services': { name: 'Cloud', color: 'cyan' },
-        'documentation reference learning': { name: 'Docs', color: 'yellow' },
-        'finance banking money': { name: 'Finance', color: 'green' },
-        'artificial intelligence machine learning': { name: 'AI', color: 'purple' },
-        'education course tutorial': { name: 'Education', color: 'blue' },
-        'gaming video games': { name: 'Gaming', color: 'red' }
-      };
-
-      // Use Map to prevent duplicates
-      const categories = new Map();
-
-      // Process tabs
-      for (const tab of tabs) {
-        const text = `${tab.domain} ${tab.title} ${tab.description || ''}`.substring(0, 512);
-
-        try {
-          const result = await this.classifier(text, candidateLabels, {
-            multi_label: false,
-            hypothesis_template: 'This webpage is about {}.'
-          });
-
-          const topLabel = result.labels[0];
-          const category = labelToCategory[topLabel];
-
-          if (!categories.has(category.name)) {
-            categories.set(category.name, {
-              name: category.name,
-              color: category.color,
-              tabIds: []
-            });
-          }
-
-          categories.get(category.name).tabIds.push(tab.id);
-
-        } catch (error) {
-          console.error('Failed to classify tab:', error);
-          // Add to Other category if classification fails
-          if (!categories.has('Other')) {
-            categories.set('Other', {
-              name: 'Other',
-              color: 'grey',
-              tabIds: []
-            });
-          }
-          categories.get('Other').tabIds.push(tab.id);
-        }
-      }
-
-      // Convert to array and limit groups
-      let groups = Array.from(categories.values());
-
-      // Log what the LLM categorized
-      console.log('🤖 LLM CPU Categorization Results:');
-      groups.forEach(group => {
-        console.log(`  - ${group.name}: ${group.tabIds.length} tabs`);
-      });
-
-      groups = this.limitGroups(groups, maxGroups);
-
-      return { groups };
-
-    } catch (error) {
-      console.error('CPU categorization failed:', error);
-      return this.patternBasedCategorization(tabs, maxGroups);
-    }
-  }
 
   patternBasedCategorization(tabs, maxGroups) {
     console.log('📝 Pattern-Based Categorization - Processing tabs:');
     tabs.forEach(tab => {
-      console.log(`  [${tab.id}] ${tab.domain}: ${tab.title}`);
+      const metadata = [];
+      if (tab.ogSiteName) metadata.push(`site:${tab.ogSiteName}`);
+      if (tab.ogType) metadata.push(`type:${tab.ogType}`);
+      if (tab.applicationName) metadata.push(`app:${tab.applicationName}`);
+      const metaStr = metadata.length > 0 ? ` (${metadata.join(', ')})` : '';
+      console.log(`  [${tab.id}] ${tab.domain}: ${tab.title}${metaStr}`);
     });
 
     // Use Map to prevent duplicate groups
@@ -387,7 +391,7 @@ Important: Use the actual tab ID numbers from the input list above.`;
     const patterns = {
       'Dev': /github|gitlab|stackoverflow|localhost|codepen|jsfiddle|replit|vercel|netlify|npm|yarn/i,
       'Social': /facebook|twitter|instagram|linkedin|reddit|discord|slack|telegram|whatsapp|mastodon/i,
-      'Entertainment': /youtube|netflix|spotify|twitch|hulu|disney|prime video|vimeo|soundcloud/i,
+      'Entertainment': /youtube|netflix|spotify|twitch|hulu|disney|prime video|vimeo|soundcloud|steam|epic|xbox|playstation|nintendo|itch\.io|gog/i,
       'Shopping': /amazon|ebay|etsy|alibaba|walmart|target|bestbuy|shopify/i,
       'Work': /gmail|outlook|office|docs\.google|drive\.google|notion|asana|trello|jira|monday/i,
       'News': /cnn|bbc|reuters|bloomberg|techcrunch|hackernews|nytimes|wsj|guardian/i,
@@ -395,8 +399,7 @@ Important: Use the actual tab ID numbers from the input list above.`;
       'Docs': /docs\.|documentation|wiki|mdn|w3schools|devdocs|readme|api\./i,
       'Finance': /bank|paypal|venmo|crypto|coinbase|binance|robinhood|fidelity|chase|schwab|vanguard|etrade|ameritrade|wellsfargo|bofa|citibank|capital\s*one|discover|amex|mastercard|visa|mint|quicken|turbotax/i,
       'AI': /openai|claude|anthropic|huggingface|colab|kaggle|chatgpt|bard|gemini/i,
-      'Education': /coursera|udemy|khan|edx|udacity|pluralsight|skillshare/i,
-      'Gaming': /steam|epic|xbox|playstation|nintendo|itch\.io|gog/i
+      'Education': /coursera|udemy|khan|edx|udacity|pluralsight|skillshare/i
     };
 
     // Track which tabs belong to which category
@@ -404,16 +407,51 @@ Important: Use the actual tab ID numbers from the input list above.`;
       let category = null;
       let bestMatchLength = 0;
 
-      // Find the best matching pattern (longest match wins)
-      for (const [cat, pattern] of Object.entries(patterns)) {
-        const domainMatch = tab.domain.match(pattern);
-        const titleMatch = tab.title.match(pattern);
-        const matchLength = (domainMatch ? domainMatch[0].length : 0) +
-                           (titleMatch ? titleMatch[0].length : 0);
+      // Check metadata hints first for better categorization
+      if (tab.ogType) {
+        const ogTypeLower = tab.ogType.toLowerCase();
+        if (ogTypeLower.includes('article') || ogTypeLower.includes('blog')) {
+          category = 'News';
+        } else if (ogTypeLower.includes('video') || ogTypeLower.includes('music')) {
+          category = 'Entertainment';
+        } else if (ogTypeLower.includes('product') || ogTypeLower.includes('shopping')) {
+          category = 'Shopping';
+        } else if (ogTypeLower.includes('profile') || ogTypeLower.includes('person')) {
+          category = 'Social';
+        }
+      }
+      
+      if (tab.schemaType) {
+        const schemaLower = tab.schemaType.toLowerCase();
+        if (schemaLower.includes('softwareapplication') || schemaLower.includes('code')) {
+          category = 'Dev';
+        } else if (schemaLower.includes('article') || schemaLower.includes('newsarticle')) {
+          category = 'News';
+        } else if (schemaLower.includes('product') || schemaLower.includes('offer')) {
+          category = 'Shopping';
+        } else if (schemaLower.includes('course') || schemaLower.includes('educational')) {
+          category = 'Education';
+        }
+      }
 
-        if (matchLength > bestMatchLength) {
-          category = cat;
-          bestMatchLength = matchLength;
+      // If no metadata match, use pattern matching
+      if (!category) {
+        // Find the best matching pattern (longest match wins)
+        for (const [cat, pattern] of Object.entries(patterns)) {
+          const domainMatch = tab.domain.match(pattern);
+          const titleMatch = tab.title.match(pattern);
+          const siteNameMatch = tab.ogSiteName ? tab.ogSiteName.match(pattern) : null;
+          const appNameMatch = tab.applicationName ? tab.applicationName.match(pattern) : null;
+          
+          const matchLength = (domainMatch ? domainMatch[0].length : 0) +
+                             (titleMatch ? titleMatch[0].length : 0) +
+                             (siteNameMatch ? siteNameMatch[0].length : 0) +
+                             (appNameMatch ? appNameMatch[0].length : 0);
+
+          if (matchLength > bestMatchLength) {
+            category = cat;
+            bestMatchLength = matchLength;
+          }
         }
       }
 
@@ -447,13 +485,19 @@ Important: Use the actual tab ID numbers from the input list above.`;
     return { groups };
   }
 
+  validateSingleCategoryName(category) {
+    // Check if it's already valid
+    const matched = this.VALID_CATEGORIES.find(cat =>
+      cat.toLowerCase() === category.toLowerCase().trim()
+    );
+    if (matched) return matched;
+
+    // If not valid, return Other
+    return 'Other';
+  }
+
   validateGroupNames(groups) {
-    const validCategories = ['Dev', 'Social', 'Entertainment', 'Shopping', 'Work',
-                            'News', 'Cloud', 'Docs', 'Finance', 'AI', 'Education',
-                            'Communication', 'Health', 'Travel', 'Design', 'Analytics',
-                            'Security', 'Marketing', 'Government', 'Food', 'Photography',
-                            'Real Estate', 'HR', 'Legal', 'Insurance', 'Utilities',
-                            'Gaming', 'Other'];
+    const validCategories = this.VALID_CATEGORIES;
 
     const validatedGroups = [];
 
@@ -574,8 +618,6 @@ Important: Use the actual tab ID numbers from the input list above.`;
   async findBestGroup(tab, existingGroups) {
     if (this.mode === 'gpu' && this.engine) {
       return this.gpuFindGroup(tab, existingGroups);
-    } else if (this.mode === 'cpu' && this.classifier) {
-      return this.cpuFindGroup(tab, existingGroups);
     }
     return this.patternFindGroup(tab, existingGroups);
   }
@@ -614,30 +656,6 @@ Reply with just the group name or "none" if no match.`;
     }
   }
 
-  async cpuFindGroup(tab, existingGroups) {
-    try {
-      const text = `${tab.domain} ${tab.title}`.substring(0, 256);
-      const labels = existingGroups.map(g => g.name.toLowerCase());
-      labels.push('none');
-
-      const result = await this.classifier(text, labels, {
-        multi_label: false
-      });
-
-      const topLabel = result.labels[0];
-      if (topLabel === 'none') {
-        return null;
-      }
-
-      return existingGroups.find(g =>
-        g.name.toLowerCase() === topLabel
-      ) || null;
-
-    } catch (error) {
-      console.error('Failed to find group with CPU:', error);
-      return this.patternFindGroup(tab, existingGroups);
-    }
-  }
 
   patternFindGroup(tab, existingGroups) {
     const domainPatterns = {
@@ -666,8 +684,6 @@ Reply with just the group name or "none" if no match.`;
   async categorizeTab(tab) {
     if (this.mode === 'gpu' && this.engine) {
       return this.gpuCategorizeTab(tab);
-    } else if (this.mode === 'cpu' && this.classifier) {
-      return this.cpuCategorizeTab(tab);
     }
     return this.patternCategorizeTab(tab);
   }
@@ -701,26 +717,6 @@ Reply with just the category name.`;
     }
   }
 
-  async cpuCategorizeTab(tab) {
-    try {
-      const text = `${tab.domain} ${tab.title}`.substring(0, 256);
-      const labels = ['Dev', 'Social', 'Entertainment', 'Work', 'Shopping', 'News', 'Cloud', 'Docs', 'Other'];
-
-      const result = await this.classifier(text, labels, {
-        multi_label: false
-      });
-
-      const topLabel = result.labels[0];
-      return {
-        name: topLabel,
-        color: this.selectColor(topLabel)
-      };
-
-    } catch (error) {
-      console.error('Failed to categorize tab with CPU:', error);
-      return this.patternCategorizeTab(tab);
-    }
-  }
 
   patternCategorizeTab(tab) {
     const domain = tab.domain.toLowerCase();
@@ -769,12 +765,7 @@ Reply with just the category name.`;
     }
 
     // Check if it's a valid category name
-    const validCategories = ['Dev', 'Social', 'Entertainment', 'Shopping', 'Work',
-                            'News', 'Cloud', 'Docs', 'Finance', 'AI', 'Education',
-                            'Communication', 'Health', 'Travel', 'Design', 'Analytics',
-                            'Security', 'Marketing', 'Government', 'Food', 'Photography',
-                            'Real Estate', 'HR', 'Legal', 'Insurance', 'Utilities',
-                            'Gaming', 'Other'];
+    const validCategories = this.VALID_CATEGORIES;
 
     // If it matches a valid category (case insensitive), use that
     const matched = validCategories.find(cat =>
@@ -797,23 +788,7 @@ Reply with just the category name.`;
   }
 
   selectColor(name) {
-    const colorMap = {
-      'Dev': 'blue',
-      'Social': 'pink',
-      'Entertainment': 'red',
-      'Shopping': 'orange',
-      'Work': 'green',
-      'News': 'purple',
-      'Cloud': 'cyan',
-      'Docs': 'yellow',
-      'Finance': 'green',
-      'AI': 'purple',
-      'Education': 'blue',
-      'Gaming': 'red',
-      'Other': 'grey'
-    };
-
-    return colorMap[name] || this.hashColor(name);
+    return this.CATEGORY_COLORS[name] || this.hashColor(name);
   }
 
   hashColor(name) {

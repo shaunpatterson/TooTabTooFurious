@@ -26,19 +26,31 @@ class TooTabTooFurious {
     // Set up listeners
     this.setupListeners();
     
-    // Clean up duplicate tab groups on startup
-    console.log('🧹 Running duplicate cleanup on startup...');
-    try {
-      const result = await this.tabManager.cleanupAllDuplicates();
-      console.log('Startup cleanup result:', result);
-    } catch (error) {
-      console.error('Failed to cleanup duplicates on startup:', error);
-    }
-    
-    // Initial organization if auto mode is on
+    // Auto-organize and deduplicate on startup if auto mode is enabled
     if (this.isAutoMode) {
-      console.log('🤖 Auto mode enabled - organizing tabs...');
-      this.organizeTabs();
+      console.log('🤖 Auto mode enabled - organizing and deduplicating tabs on startup...');
+      
+      // First clean up duplicates
+      console.log('🧹 Running duplicate cleanup...');
+      try {
+        const result = await this.tabManager.cleanupAllDuplicates();
+        console.log('Startup cleanup result:', result);
+      } catch (error) {
+        console.error('Failed to cleanup duplicates on startup:', error);
+      }
+      
+      // Then organize tabs
+      console.log('📊 Organizing tabs...');
+      await this.organizeTabs();
+    } else {
+      // Even if auto mode is off, still clean up duplicates on startup
+      console.log('🧹 Running duplicate cleanup on startup...');
+      try {
+        const result = await this.tabManager.cleanupAllDuplicates();
+        console.log('Startup cleanup result:', result);
+      } catch (error) {
+        console.error('Failed to cleanup duplicates on startup:', error);
+      }
     }
   }
 
@@ -68,8 +80,7 @@ class TooTabTooFurious {
     try {
       switch (request.action) {
         case 'organizeTabs':
-          const allWindows = request.allWindows || false;
-          const result = await this.organizeTabs(allWindows);
+          const result = await this.organizeTabs();
           sendResponse({ success: true, result });
           break;
           
@@ -115,48 +126,30 @@ class TooTabTooFurious {
     }
   }
 
-  async organizeTabs(allWindows = false) {
-    console.log(`🚀 Organizing tabs... (${allWindows ? 'all windows' : 'current window only'})`);
+  async organizeTabs() {
+    console.log(`🚀 Organizing tabs across all windows...`);
     
     try {
       console.log('Step 1: Getting window info...');
       
-      let tabs;
+      // Always organize all windows
+      const windows = await chrome.windows.getAll({ windowTypes: ['normal'] });
+      console.log(`Found ${windows.length} normal windows`);
       
-      if (allWindows) {
-        // Get all windows (including minimized)
-        const windows = await chrome.windows.getAll({ windowTypes: ['normal'] });
-        console.log(`Found ${windows.length} normal windows`);
-        
-        // Log each window
-        for (const window of windows) {
-          const windowTabs = await chrome.tabs.query({ windowId: window.id });
-          console.log(`Window ${window.id} (${window.state}): ${windowTabs.length} tabs`);
-        }
-        
-        // Get ALL tabs from ALL windows (remove windowType filter)
-        tabs = await chrome.tabs.query({});
-        console.log(`Step 2: Found ${tabs.length} total tabs across all windows`);
-        
-        // Filter to only normal window tabs
-        const normalWindowIds = new Set(windows.map(w => w.id));
-        tabs = tabs.filter(tab => normalWindowIds.has(tab.windowId));
-        console.log(`After filtering to normal windows: ${tabs.length} tabs`);
-      } else {
-        // Check if current window is a normal window
-        const currentWindow = await chrome.windows.getCurrent();
-        if (currentWindow.type !== 'normal') {
-          console.log(`Cannot organize tabs in ${currentWindow.type} window - only normal windows supported`);
-          return { message: `Tab organization only works in normal browser windows, not ${currentWindow.type} windows` };
-        }
-        
-        console.log('Step 1b: Getting tabs from current window...');
-        
-        // Get tabs from current window only
-        tabs = await chrome.tabs.query({ currentWindow: true });
-        console.log(`Step 2: Found ${tabs.length} total tabs in current window`);
-      
+      // Log each window
+      for (const window of windows) {
+        const windowTabs = await chrome.tabs.query({ windowId: window.id });
+        console.log(`Window ${window.id} (${window.state}): ${windowTabs.length} tabs`);
       }
+      
+      // Get ALL tabs from ALL windows
+      let tabs = await chrome.tabs.query({});
+      console.log(`Step 2: Found ${tabs.length} total tabs across all windows`);
+      
+      // Filter to only normal window tabs
+      const normalWindowIds = new Set(windows.map(w => w.id));
+      tabs = tabs.filter(tab => normalWindowIds.has(tab.windowId));
+      console.log(`After filtering to normal windows: ${tabs.length} tabs`);
       
       // Filter out chrome:// and extension pages and pinned tabs
       console.log(`Step 3: Filtering ${tabs.length} tabs...`);
@@ -210,10 +203,13 @@ class TooTabTooFurious {
           url: tab.url,
           domain: new URL(tab.url).hostname,
           // Enhanced metadata for better categorization
-          description: metadata.description || '',
+          description: metadata.description || metadata.ogDescription || '',
           keywords: metadata.keywords || '',
           ogType: metadata.ogType || '',
+          ogSiteName: metadata.ogSiteName || '',
           schemaType: metadata.schemaType || '',
+          applicationName: metadata.applicationName || '',
+          generator: metadata.generator || '',
           mainHeading: metadata.mainHeading || '',
           bodyPreview: metadata.bodyText || ''
         };

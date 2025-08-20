@@ -8,11 +8,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     totalTabsOrganized: document.getElementById('totalTabsOrganized'),
     totalGroupsCreated: document.getElementById('totalGroupsCreated'),
     commonGroupsList: document.getElementById('commonGroupsList'),
-    saveBtn: document.getElementById('saveBtn'),
-    exportBtn: document.getElementById('exportBtn'),
-    importBtn: document.getElementById('importBtn'),
-    importFile: document.getElementById('importFile'),
-    clearHistoryBtn: document.getElementById('clearHistoryBtn')
+    saveBtn: document.getElementById('saveBtn')
   };
   
   // Log any missing elements for debugging
@@ -157,118 +153,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // Export settings
-  async function exportSettings() {
-    try {
-      const result = await chrome.storage.local.get(['tttf_settings', 'tttf_stats', 'tttf_group_history']);
-      
-      const exportData = {
-        version: '1.0.0',
-        exportDate: new Date().toISOString(),
-        settings: result.tttf_settings || {},
-        stats: result.tttf_stats || {},
-        history: result.tttf_group_history || []
-      };
-
-      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `tootabtofurious-backup-${Date.now()}.json`;
-      a.click();
-      
-      URL.revokeObjectURL(url);
-      
-      elements.exportBtn.textContent = '✅ Exported!';
-      setTimeout(() => {
-        elements.exportBtn.textContent = '📥 Export Settings';
-      }, 2000);
-    } catch (error) {
-      console.error('Failed to export settings:', error);
-    }
-  }
-
-  // Import settings
-  async function importSettings(file) {
-    try {
-      const text = await file.text();
-      const data = JSON.parse(text);
-      
-      if (data.settings) {
-        await chrome.storage.local.set({ tttf_settings: data.settings });
-      }
-      
-      if (data.stats) {
-        await chrome.storage.local.set({ tttf_stats: data.stats });
-      }
-      
-      if (data.history) {
-        await chrome.storage.local.set({ tttf_group_history: data.history });
-      }
-      
-      elements.importBtn.textContent = '✅ Imported!';
-      
-      // Reload settings
-      await loadSettings();
-      
-      setTimeout(() => {
-        elements.importBtn.textContent = '📤 Import Settings';
-      }, 2000);
-    } catch (error) {
-      console.error('Failed to import settings:', error);
-      elements.importBtn.textContent = '❌ Error';
-      
-      setTimeout(() => {
-        elements.importBtn.textContent = '📤 Import Settings';
-      }, 2000);
-    }
-  }
-
-  // Clear history
-  async function clearHistory() {
-    if (confirm('Are you sure you want to clear all history and statistics?')) {
-      try {
-        await chrome.storage.local.remove(['tttf_group_history', 'tttf_stats']);
-        
-        stats = {
-          totalOrganizations: 0,
-          totalTabsOrganized: 0,
-          totalGroupsCreated: 0,
-          commonGroups: {}
-        };
-        
-        updateStats();
-        
-        elements.clearHistoryBtn.textContent = '✅ Cleared!';
-        setTimeout(() => {
-          elements.clearHistoryBtn.textContent = '🗑️ Clear History';
-        }, 2000);
-      } catch (error) {
-        console.error('Failed to clear history:', error);
-      }
-    }
-  }
 
   // Setup event listeners
   function setupEventListeners() {
     // Check if elements exist before adding listeners
     if (elements.saveBtn) {
       elements.saveBtn.addEventListener('click', saveSettings);
-    }
-    if (elements.exportBtn) {
-      elements.exportBtn.addEventListener('click', exportSettings);
-    }
-    if (elements.importBtn && elements.importFile) {
-      elements.importBtn.addEventListener('click', () => elements.importFile.click());
-      elements.importFile.addEventListener('change', (e) => {
-        if (e.target.files.length > 0) {
-          importSettings(e.target.files[0]);
-        }
-      });
-    }
-    if (elements.clearHistoryBtn) {
-      elements.clearHistoryBtn.addEventListener('click', clearHistory);
     }
 
     // Auto-save on change
