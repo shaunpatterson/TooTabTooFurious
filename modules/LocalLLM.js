@@ -1,5 +1,5 @@
 // LocalLLM with WebGPU support (via WebLLM) and pattern fallback
-import * as webllm from '@mlc-ai/web-llm';
+import * as webllm from '../lib/webllm.bundle.js';
 
 export class LocalLLM {
   constructor() {
