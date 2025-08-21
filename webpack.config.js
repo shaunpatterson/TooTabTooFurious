@@ -2,6 +2,7 @@ const path = require('path');
 
 module.exports = {
   mode: 'production',
+  devtool: 'source-map', // Use source-map instead of eval-based options
   entry: './background.js',
   output: {
     filename: 'background.bundle.js',

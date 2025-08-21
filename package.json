@@ -1,21 +1,25 @@
 {
-  "name": "tootabtofurious",
+  "name": "tootabbedtoofurious",
   "version": "1.0.0",
-  "description": "Chrome extension for AI-powered tab group management",
+  "description": "Chrome extension for AI-powered tab group management using local WebLLM",
   "scripts": {
-    "build": "node build.js",
-    "watch": "node build.js --watch",
+    "build": "webpack",
+    "watch": "webpack --watch",
     "test": "echo \"No tests configured yet\"",
     "lint": "echo \"No linting configured yet\""
   },
   "keywords": [
     "chrome-extension",
     "tab-management",
-    "openai",
+    "webllm",
+    "llama",
+    "ai",
+    "local-ai",
+    "webgpu",
     "productivity"
   ],
   "author": "Shaun Patterson",
-  "license": "GPL-3.0",
+  "license": "MIT",
   "devDependencies": {
     "@babel/core": "^7.28.3",
     "@babel/preset-env": "^7.28.3",

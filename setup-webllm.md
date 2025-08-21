@@ -1,4 +1,4 @@
-# Setting Up TooTabTooFurious with WebLLM Support
+# Setting Up TooTabbedTooFurious with WebLLM Support
 
 This guide will help you set up the extension with local AI model support using WebLLM.
 
@@ -14,8 +14,8 @@ This guide will help you set up the extension with local AI model support using 
 
 ```bash
 # Clone the repository
-git clone https://github.com/shaunpatterson/TooTabTooFurious.git
-cd TooTabTooFurious
+git clone https://github.com/shaunpatterson/TooTabbedTooFurious.git
+cd TooTabbedTooFurious
 
 # Install dependencies
 npm install
@@ -131,7 +131,7 @@ const llm = new OffscreenLLM();
 1. Open Chrome and go to `chrome://extensions/`
 2. Enable "Developer mode" (top right)
 3. Click "Load unpacked"
-4. Select your TooTabTooFurious directory
+4. Select your TooTabbedTooFurious directory
 5. The extension icon will appear in your toolbar
 
 ### 5. First Time Setup
@@ -163,7 +163,7 @@ When you first use the extension:
 
 2. Clear extension data and retry:
    - Go to chrome://extensions/
-   - Click "Remove" on TooTabTooFurious
+   - Click "Remove" on TooTabbedTooFurious
    - Reload the extension
    - Try again
 

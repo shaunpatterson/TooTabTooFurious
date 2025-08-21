@@ -2,7 +2,7 @@ import { TabGroupManager } from './modules/TabGroupManager.js';
 import { LocalLLM } from './modules/LocalLLM.js';
 import { StorageManager } from './modules/StorageManager.js';
 
-class TooTabTooFurious {
+class TooTabbedTooFurious {
   constructor() {
     this.llm = new LocalLLM();
     this.tabManager = new TabGroupManager();
@@ -13,7 +13,7 @@ class TooTabTooFurious {
   }
 
   async initializeExtension() {
-    console.log('🏁 TooTabTooFurious starting up...');
+    console.log('🏁 TooTabbedTooFurious starting up...');
     
     // Load settings
     const settings = await this.storage.getSettings();
@@ -333,5 +333,5 @@ class TooTabTooFurious {
   }
 }
 
-// Initialize extension
-const extension = new TooTabTooFurious();
+// Initialize extension immediately
+new TooTabbedTooFurious();

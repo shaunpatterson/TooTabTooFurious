@@ -18,6 +18,9 @@ export class TabGroupManager {
       return [];
     }
     
+    // Create a set of valid tab IDs for this window
+    const validWindowTabIds = new Set(tabs.map(t => t.id));
+    
     console.log(`Working within window ${targetWindowId} only`);
     
     // First, clean up any existing duplicate groups IN THIS WINDOW ONLY
@@ -113,10 +116,20 @@ export class TabGroupManager {
               throw new Error(`Group is in different window ${tabsInGroup[0].windowId}, target is ${targetWindowId}`);
             }
             
+            // Double-check all tabs are in the same window before grouping
+            const tabsToGroup = validTabIds.filter(id => {
+              const tab = tabMap.get(id);
+              return tab && tab.windowId === targetWindowId;
+            });
+            
+            if (tabsToGroup.length === 0) {
+              throw new Error('No tabs in target window to group');
+            }
+            
             // Add tabs to existing group
             groupId = existingGroup.id;
             await chrome.tabs.group({
-              tabIds: validTabIds,
+              tabIds: tabsToGroup,
               groupId: groupId
             });
             action = 'merged into existing';
@@ -140,9 +153,20 @@ export class TabGroupManager {
           existingGroupsByName.set(normalizedCategoryName, groupToStore);
           existingGroupsByName.set(normalizedNoSpace, groupToStore);
         } else {
+          // Double-check all tabs are in the same window before creating group
+          const tabsToGroup = validTabIds.filter(id => {
+            const tab = tabMap.get(id);
+            return tab && tab.windowId === targetWindowId;
+          });
+          
+          if (tabsToGroup.length === 0) {
+            console.log(`No tabs in target window ${targetWindowId} to create group ${category.name}`);
+            continue;
+          }
+          
           // Create new group
           groupId = await chrome.tabs.group({
-            tabIds: validTabIds
+            tabIds: tabsToGroup
           });
 
           // Update group properties

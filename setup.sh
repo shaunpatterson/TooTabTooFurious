@@ -2,7 +2,7 @@
 
 # Setup script to download WebLLM library locally
 
-echo "Setting up TooTabTooFurious Chrome Extension..."
+echo "Setting up TooTabbedTooFurious Chrome Extension..."
 
 # Create lib directory if it doesn't exist
 mkdir -p lib
