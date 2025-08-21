@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "TooTabTooFurious - AI Tab Manager",
+  "name": "TooTabbedTooFurious - AI Tab Manager",
   "version": "1.0.0",
   "description": "Auto-magically organize your tabs into groups using OpenAI",
   "permissions": [

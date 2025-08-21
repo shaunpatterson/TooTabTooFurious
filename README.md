@@ -1,13 +1,13 @@
-# TooTabTooFurious 🏁
+# TooTabbedTooFurious 🏁
 
-A Chrome extension that automatically organizes your browser tabs into smart groups using intelligent categorization. Clean, minimal design that matches Chrome's aesthetic.
+A Chrome extension that automatically organizes your browser tabs into smart groups using local AI models (WebLLM). Clean, minimal design that matches Chrome's aesthetic.
 
 ## Features
 
 - **Smart Tab Grouping**: Automatically organizes tabs into logical categories (Dev, Social, Entertainment, Work, etc.)
 - **Duplicate Prevention**: Merges tabs into existing groups instead of creating duplicates
 - **Auto Mode**: Automatically organize new tabs as you browse
-- **Enhanced Metadata**: Analyzes page descriptions, keywords, and content for better categorization
+- **Local AI Models**: Uses WebLLM to run AI models locally (Llama 3.2, Phi-3.5, Gemma-2)
 - **Configurable Groups**: Set maximum number of groups (2-10, default: 5)
 - **Clean UI**: Minimal design that matches Chrome's default theme
 - **Statistics Tracking**: Monitor your tab organization habits
@@ -16,8 +16,8 @@ A Chrome extension that automatically organizes your browser tabs into smart gro
 
 1. **Download or Clone the Repository**:
    ```bash
-   git clone https://github.com/shaunpatterson/TooTabTooFurious.git
-   cd TooTabTooFurious
+   git clone git@github.com:shaunpatterson/TooTabbedTooFurious.git
+   cd TooTabbedTooFurious
    ```
 
 2. **Generate Extension Icons** (if not already present):
@@ -29,17 +29,17 @@ A Chrome extension that automatically organizes your browser tabs into smart gro
    - Open Chrome and navigate to `chrome://extensions/`
    - Enable "Developer mode" toggle in the top right
    - Click "Load unpacked"
-   - Select the TooTabTooFurious directory
+   - Select the TooTabbedTooFurious directory
    - The extension icon will appear in your toolbar
 
 4. **Pin the Extension** (recommended):
    - Click the puzzle piece icon in Chrome toolbar
-   - Click the pin icon next to "TooTabTooFurious"
+   - Click the pin icon next to "TooTabbedTooFurious"
 
 ## Usage
 
 ### Quick Start
-1. Click the TooTabTooFurious icon in your toolbar
+1. Click the TooTabbedTooFurious icon in your toolbar
 2. Click "Organize Tabs Now" to instantly group all open tabs
 3. Enable "Auto Mode" to automatically organize new tabs as you browse
 
@@ -100,7 +100,7 @@ The extension uses a hybrid approach:
 
 ### Project Structure
 ```
-TooTabTooFurious/
+TooTabbedTooFurious/
 ├── manifest.json           # Chrome extension manifest
 ├── background.js          # Service worker for tab management
 ├── popup.html/js/css      # Extension popup UI
@@ -154,4 +154,4 @@ Created by Shaun Patterson
 
 ---
 
-**Note**: The extension uses intelligent pattern matching for categorization. If you have a GPU with WebGPU support, you can optionally enable AI-powered categorization using TinyLlama by running the `install-with-llm.sh` script.
+**Note**: The extension uses local AI models via WebLLM for intelligent categorization. On first use, it will download the selected model (500MB-1GB). Falls back to rule-based categorization if AI is unavailable.
