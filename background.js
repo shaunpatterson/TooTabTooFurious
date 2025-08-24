@@ -114,8 +114,14 @@ class TooTabbedTooFurious {
           
         case 'cleanupDuplicates':
           console.log('Running aggressive duplicate cleanup...');
-          await this.tabManager.cleanupAllDuplicates();
-          sendResponse({ success: true, message: 'Duplicate groups cleaned up' });
+          const cleanupResult = await this.tabManager.cleanupAllDuplicates();
+          sendResponse({ success: true, message: 'Duplicate groups cleaned up', result: cleanupResult });
+          break;
+          
+        case 'cleanupExcessiveGroups':
+          console.log('Cleaning up excessive tab groups...');
+          const excessResult = await this.cleanupExcessiveGroups();
+          sendResponse({ success: true, message: `Cleaned up ${excessResult.removed} groups`, result: excessResult });
           break;
           
         default:
@@ -128,29 +134,23 @@ class TooTabbedTooFurious {
   }
 
   async organizeTabs() {
-    console.log(`🚀 Organizing tabs across all windows...`);
+    console.log(`🚀 Organizing tabs in current window only...`);
     
     try {
-      console.log('Step 1: Getting window info...');
+      console.log('Step 1: Getting current window info...');
       
-      // Always organize all windows
-      const windows = await chrome.windows.getAll({ windowTypes: ['normal'] });
-      console.log(`Found ${windows.length} normal windows`);
+      // Get current window only
+      const currentWindow = await chrome.windows.getCurrent();
+      console.log(`Current window ID: ${currentWindow.id} (${currentWindow.state})`);
       
-      // Log each window
-      for (const window of windows) {
-        const windowTabs = await chrome.tabs.query({ windowId: window.id });
-        console.log(`Window ${window.id} (${window.state}): ${windowTabs.length} tabs`);
+      if (currentWindow.type !== 'normal') {
+        console.log(`Skipping organization in ${currentWindow.type} window`);
+        return { success: false, message: 'Can only organize tabs in normal windows' };
       }
       
-      // Get ALL tabs from ALL windows
-      let tabs = await chrome.tabs.query({});
-      console.log(`Step 2: Found ${tabs.length} total tabs across all windows`);
-      
-      // Filter to only normal window tabs
-      const normalWindowIds = new Set(windows.map(w => w.id));
-      tabs = tabs.filter(tab => normalWindowIds.has(tab.windowId));
-      console.log(`After filtering to normal windows: ${tabs.length} tabs`);
+      // Get tabs from CURRENT WINDOW ONLY
+      let tabs = await chrome.tabs.query({ currentWindow: true });
+      console.log(`Step 2: Found ${tabs.length} tabs in current window`);
       
       // Filter out chrome:// and extension pages and pinned tabs
       console.log(`Step 3: Filtering ${tabs.length} tabs...`);
@@ -231,25 +231,9 @@ class TooTabbedTooFurious {
     
       console.log('Step 9: Creating/merging tab groups...');
       
-      // Group tabs by window ID
-      const tabsByWindow = {};
-      organizableTabs.forEach(tab => {
-        if (!tabsByWindow[tab.windowId]) {
-          tabsByWindow[tab.windowId] = [];
-        }
-        tabsByWindow[tab.windowId].push(tab);
-      });
-      
-      // Create groups in each window separately
-      const allGroups = [];
-      for (const [windowId, windowTabs] of Object.entries(tabsByWindow)) {
-        console.log(`Creating groups in window ${windowId} with ${windowTabs.length} tabs`);
-        const windowGroups = await this.tabManager.createGroups(categories, windowTabs);
-        allGroups.push(...windowGroups);
-      }
-      
-      const groups = allGroups;
-      console.log('Step 10: Groups created across all windows:', groups);
+      // All tabs are from current window, so no need to group by window
+      const groups = await this.tabManager.createGroups(categories, organizableTabs);
+      console.log('Step 10: Groups created in current window:', groups);
       
       console.log('Step 11: Saving group history...');
       // Save group history
@@ -331,6 +315,89 @@ class TooTabbedTooFurious {
   async getGroupCount() {
     const groups = await chrome.tabGroups.query({ windowId: chrome.windows.WINDOW_ID_CURRENT });
     return groups.length;
+  }
+
+  async cleanupExcessiveGroups() {
+    try {
+      // Get all groups in current window
+      const currentWindow = await chrome.windows.getCurrent();
+      const groups = await chrome.tabGroups.query({ windowId: currentWindow.id });
+      
+      console.log(`Found ${groups.length} tab groups in current window`);
+      
+      // First, merge any duplicates
+      await this.tabManager.mergeDuplicateGroups();
+      
+      // Get updated group list after merging
+      const updatedGroups = await chrome.tabGroups.query({ windowId: currentWindow.id });
+      
+      // Count tabs per group
+      const groupsWithTabCount = await Promise.all(updatedGroups.map(async (group) => {
+        const tabs = await chrome.tabs.query({ groupId: group.id });
+        return {
+          group,
+          tabCount: tabs.length,
+          tabs
+        };
+      }));
+      
+      // Remove empty groups (Chrome should do this automatically, but let's be sure)
+      const emptyGroups = groupsWithTabCount.filter(g => g.tabCount === 0);
+      console.log(`Found ${emptyGroups.length} empty groups`);
+      
+      // Sort by tab count to identify small groups that could be merged
+      groupsWithTabCount.sort((a, b) => a.tabCount - b.tabCount);
+      
+      // If we have too many groups, merge the smallest ones into "Other"
+      const nonEmptyGroups = groupsWithTabCount.filter(g => g.tabCount > 0);
+      let removedCount = emptyGroups.length;
+      
+      if (nonEmptyGroups.length > this.maxGroups) {
+        console.log(`Too many groups (${nonEmptyGroups.length} > ${this.maxGroups}), merging smallest ones...`);
+        
+        // Find or create "Other" group
+        let otherGroup = nonEmptyGroups.find(g => 
+          g.group.title && g.group.title.toLowerCase() === 'other'
+        );
+        
+        if (!otherGroup) {
+          // Create "Other" group with first small group's tabs
+          const firstSmallGroup = nonEmptyGroups[0];
+          if (firstSmallGroup.tabCount > 0) {
+            await chrome.tabGroups.update(firstSmallGroup.group.id, {
+              title: 'Other',
+              color: 'grey'
+            });
+            otherGroup = firstSmallGroup;
+          }
+        }
+        
+        // Merge small groups into "Other"
+        const groupsToMerge = nonEmptyGroups.slice(0, nonEmptyGroups.length - this.maxGroups + 1);
+        for (const groupData of groupsToMerge) {
+          if (groupData.group.id !== otherGroup.group.id && groupData.tabCount > 0) {
+            const tabIds = groupData.tabs.map(t => t.id);
+            await chrome.tabs.group({
+              tabIds: tabIds,
+              groupId: otherGroup.group.id
+            });
+            removedCount++;
+            console.log(`Merged ${groupData.group.title || 'Untitled'} (${tabIds.length} tabs) into Other`);
+          }
+        }
+      }
+      
+      return {
+        original: groups.length,
+        final: await this.getGroupCount(),
+        removed: removedCount,
+        merged: removedCount - emptyGroups.length
+      };
+      
+    } catch (error) {
+      console.error('Failed to cleanup excessive groups:', error);
+      return { error: error.message };
+    }
   }
 }
 

@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     organizeBtn: document.getElementById('organizeBtn'),
     autoModeBtn: document.getElementById('autoModeBtn'),
     autoModeText: document.getElementById('autoModeText'),
+    cleanupBtn: document.getElementById('cleanupBtn'),
     tabCount: document.getElementById('tabCount'),
     groupCount: document.getElementById('groupCount'),
     groupsList: document.getElementById('groupsList'),
@@ -214,7 +215,48 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
 
-    // Clean duplicates button removed - no longer needed
+    // Cleanup groups button
+    elements.cleanupBtn.addEventListener('click', async () => {
+      elements.cleanupBtn.disabled = true;
+      elements.cleanupBtn.textContent = 'Cleaning...';
+      
+      try {
+        // First cleanup duplicates
+        const dupResponse = await chrome.runtime.sendMessage({ 
+          action: 'cleanupDuplicates'
+        });
+        
+        // Then cleanup excessive groups
+        const excessResponse = await chrome.runtime.sendMessage({ 
+          action: 'cleanupExcessiveGroups'
+        });
+        
+        if (dupResponse.success || excessResponse.success) {
+          const result = excessResponse.result || {};
+          const message = result.merged ? 
+            `Merged ${result.merged} groups` : 
+            'Groups cleaned up';
+          elements.cleanupBtn.textContent = message;
+          await updateStatus();
+          await loadRecentGroups();
+          
+          setTimeout(() => {
+            elements.cleanupBtn.textContent = 'Cleanup Groups';
+            elements.cleanupBtn.disabled = false;
+          }, 2000);
+        } else {
+          throw new Error('Failed to cleanup groups');
+        }
+      } catch (error) {
+        console.error('Failed to cleanup groups:', error);
+        elements.cleanupBtn.textContent = 'Error';
+        
+        setTimeout(() => {
+          elements.cleanupBtn.textContent = 'Cleanup Groups';
+          elements.cleanupBtn.disabled = false;
+        }, 2000);
+      }
+    });
     
     // Settings button
     elements.settingsBtn.addEventListener('click', () => {

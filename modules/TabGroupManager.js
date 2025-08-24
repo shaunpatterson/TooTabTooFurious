@@ -26,12 +26,28 @@ export class TabGroupManager {
     // First, clean up any existing duplicate groups IN THIS WINDOW ONLY
     await this.mergeDuplicateGroups();
     
-    // Get existing groups IN THIS WINDOW ONLY
-    const existingGroups = await chrome.tabGroups.query({ windowId: targetWindowId });
+    // Get existing groups across ALL windows (to handle synced groups)
+    // This will help us detect groups that exist due to Chrome's tab group sync
+    const allExistingGroups = await chrome.tabGroups.query({});
+    const existingGroupsInWindow = allExistingGroups.filter(g => g.windowId === targetWindowId);
+    
+    // Use groups from current window for operations, but check names from all windows
+    const existingGroups = existingGroupsInWindow;
     const existingGroupsByName = new Map();
     const normalizedNames = new Set();
+    const allGroupNames = new Set();
     
-    // Create a map of existing groups by normalized name
+    // Collect all group names across all windows to avoid creating duplicates
+    for (const group of allExistingGroups) {
+      if (group.title) {
+        const normalizedName = group.title.toLowerCase().trim();
+        allGroupNames.add(normalizedName);
+        allGroupNames.add(normalizedName.replace(/\s+/g, ''));
+        allGroupNames.add(normalizedName.replace(/[\s-_]+/g, ''));
+      }
+    }
+    
+    // Create a map of existing groups IN THIS WINDOW by normalized name
     for (const group of existingGroups) {
       if (group.title) {
         const normalizedName = group.title.toLowerCase().trim();
@@ -89,18 +105,26 @@ export class TabGroupManager {
           continue;
         }
 
-        // Check for existing group with various normalizations
+        // Check if a group with this name exists anywhere (to avoid sync duplicates)
+        const nameExistsAnywhere = allGroupNames.has(normalizedCategoryName) || 
+                                   allGroupNames.has(normalizedNoSpace) ||
+                                   allGroupNames.has(normalizedNoSpecial);
+        
+        // Check for existing group IN THIS WINDOW with various normalizations
         console.log(`Looking for existing group for "${category.name}" (normalized: "${normalizedCategoryName}", "${normalizedNoSpace}")`);
-        console.log(`Existing groups map has keys:`, Array.from(existingGroupsByName.keys()));
+        console.log(`Group name exists in any window: ${nameExistsAnywhere}`);
+        console.log(`Existing groups in this window:`, Array.from(existingGroupsByName.keys()));
         
         const existingGroup = existingGroupsByName.get(normalizedCategoryName) || 
                              existingGroupsByName.get(normalizedNoSpace) ||
                              existingGroupsByName.get(normalizedNoSpecial);
         
         if (existingGroup) {
-          console.log(`Found existing group: ${existingGroup.title} (ID: ${existingGroup.id})`);
+          console.log(`Found existing group in this window: ${existingGroup.title} (ID: ${existingGroup.id})`);
+        } else if (nameExistsAnywhere) {
+          console.log(`No existing group in this window, but "${category.name}" exists in another window (likely synced)`);
         } else {
-          console.log(`No existing group found for "${category.name}"`);
+          console.log(`No existing group found anywhere for "${category.name}"`);
         }
 
         let groupId;
@@ -152,7 +176,10 @@ export class TabGroupManager {
           const groupToStore = { id: groupId, title: category.name, color: category.color };
           existingGroupsByName.set(normalizedCategoryName, groupToStore);
           existingGroupsByName.set(normalizedNoSpace, groupToStore);
-        } else {
+          // Also update the global names set
+          allGroupNames.add(normalizedCategoryName);
+          allGroupNames.add(normalizedNoSpace);
+        } else if (!nameExistsAnywhere) {
           // Double-check all tabs are in the same window before creating group
           const tabsToGroup = validTabIds.filter(id => {
             const tab = tabMap.get(id);
@@ -181,6 +208,16 @@ export class TabGroupManager {
           const newGroup = { id: groupId, title: category.name, color: category.color };
           existingGroupsByName.set(normalizedCategoryName, newGroup);
           existingGroupsByName.set(normalizedNoSpace, newGroup);
+          // Also update the global names set
+          allGroupNames.add(normalizedCategoryName);
+          allGroupNames.add(normalizedNoSpace);
+        } else {
+          // Group exists in another window (likely synced), skip creating a duplicate
+          console.log(`⚠️ Skipping "${category.name}" - already exists in another window (likely synced)`);
+          
+          // Still add tabs to ungrouped state or find alternative
+          // We'll just skip this category to avoid creating duplicates
+          continue;
         }
 
         groups.push({
@@ -309,9 +346,22 @@ export class TabGroupManager {
         return 0;
       }
       
+      // Get groups only from current window to avoid affecting synced groups in other windows
       const groups = await chrome.tabGroups.query({ windowId: currentWindow.id });
       
-      // Track groups by normalized name
+      // Also get all groups to check for cross-window duplicates
+      const allGroups = await chrome.tabGroups.query({});
+      const crossWindowNames = new Set();
+      
+      // Track names that exist in other windows
+      for (const group of allGroups) {
+        if (group.windowId !== currentWindow.id && group.title) {
+          const normalized = group.title.toLowerCase().trim().replace(/[\s-_]+/g, '');
+          crossWindowNames.add(normalized);
+        }
+      }
+      
+      // Track groups by normalized name (only in current window)
       const groupsByName = new Map();
       
       for (const group of groups) {
@@ -337,8 +387,10 @@ export class TabGroupManager {
         }
       }
       
-      // Merge duplicates
+      // Merge duplicates within this window only
       let totalMerged = 0;
+      console.log(`Cross-window group names: ${Array.from(crossWindowNames).join(', ')}`);
+      
       for (const [name, duplicateGroups] of groupsByName.entries()) {
         if (duplicateGroups.length > 1) {
           console.log(`Found ${duplicateGroups.length} duplicate groups for "${duplicateGroups[0].title}"`);
@@ -385,7 +437,15 @@ export class TabGroupManager {
         }
       }
       
-      console.log(`Duplicate group cleanup complete. Merged ${totalMerged} tabs total.`);
+      console.log(`Duplicate group cleanup complete in window ${currentWindow.id}. Merged ${totalMerged} tabs total.`);
+      
+      // Log warning if there are potential sync conflicts
+      for (const [name, groups] of groupsByName.entries()) {
+        if (crossWindowNames.has(name) && groups.length === 1) {
+          console.warn(`⚠️ Group "${groups[0].title}" also exists in another window (likely synced)`);
+        }
+      }
+      
       return totalMerged;
       
     } catch (error) {
