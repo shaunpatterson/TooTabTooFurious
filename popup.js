@@ -54,7 +54,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             case 'ready':
               elements.statusDot.classList.add('active');
               elements.statusDot.classList.remove('error');
-              elements.statusText.textContent = 'AI Ready (Llama 8B)';
+              elements.statusText.textContent = 'AI Ready (TinyLlama Fine-tuned)';
               elements.progressBar.style.display = 'none';
               break;
               

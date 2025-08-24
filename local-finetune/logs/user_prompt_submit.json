@@ -1,0 +1,51 @@
+[
+  {
+    "session_id": "62c40914-8476-412b-b449-0ace0e1e7a64",
+    "transcript_path": "/home/shaun/.claude/projects/-home-shaun-workspace-TooTabbedTooFurious/62c40914-8476-412b-b449-0ace0e1e7a64.jsonl",
+    "cwd": "/home/shaun/workspace/TooTabbedTooFurious/local-finetune",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "continue"
+  },
+  {
+    "session_id": "62c40914-8476-412b-b449-0ace0e1e7a64",
+    "transcript_path": "/home/shaun/.claude/projects/-home-shaun-workspace-TooTabbedTooFurious/62c40914-8476-412b-b449-0ace0e1e7a64.jsonl",
+    "cwd": "/home/shaun/workspace/TooTabbedTooFurious/local-finetune",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "any stats on the results?"
+  },
+  {
+    "session_id": "62c40914-8476-412b-b449-0ace0e1e7a64",
+    "transcript_path": "/home/shaun/.claude/projects/-home-shaun-workspace-TooTabbedTooFurious/62c40914-8476-412b-b449-0ace0e1e7a64.jsonl",
+    "cwd": "/home/shaun/workspace/TooTabbedTooFurious/local-finetune",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "update .gitignore to ignore the generated files and the venv"
+  },
+  {
+    "session_id": "62c40914-8476-412b-b449-0ace0e1e7a64",
+    "transcript_path": "/home/shaun/.claude/projects/-home-shaun-workspace-TooTabbedTooFurious/62c40914-8476-412b-b449-0ace0e1e7a64.jsonl",
+    "cwd": "/home/shaun/workspace/TooTabbedTooFurious/local-finetune",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "is the extension built and ready to import into chrome?"
+  },
+  {
+    "session_id": "62c40914-8476-412b-b449-0ace0e1e7a64",
+    "transcript_path": "/home/shaun/.claude/projects/-home-shaun-workspace-TooTabbedTooFurious/62c40914-8476-412b-b449-0ace0e1e7a64.jsonl",
+    "cwd": "/home/shaun/workspace/TooTabbedTooFurious/local-finetune",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "    this.VALID_CATEGORIES = ['Dev', 'Social', 'Entertainment', 'Shopping', 'Work',\n                             'News', 'Cloud', 'Docs', 'Finance', 'AI', 'Education',\n                             'Communication', 'Health', 'Travel', 'Design', 'Analytics',\n                             'Security', 'Marketing', 'Government', 'Food', 'Photography',\n                             'Real Estate', 'HR', 'Legal', 'Insurance', 'Utilities',\n                             'Other'];\nthe fined-tunde model needs to use these same categories"
+  },
+  {
+    "session_id": "62c40914-8476-412b-b449-0ace0e1e7a64",
+    "transcript_path": "/home/shaun/.claude/projects/-home-shaun-workspace-TooTabbedTooFurious/62c40914-8476-412b-b449-0ace0e1e7a64.jsonl",
+    "cwd": "/home/shaun/workspace/TooTabbedTooFurious/local-finetune",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "the model still says Llama 8B on the UI"
+  },
+  {
+    "session_id": "62c40914-8476-412b-b449-0ace0e1e7a64",
+    "transcript_path": "/home/shaun/.claude/projects/-home-shaun-workspace-TooTabbedTooFurious/62c40914-8476-412b-b449-0ace0e1e7a64.jsonl",
+    "cwd": "/home/shaun/workspace/TooTabbedTooFurious/local-finetune",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "ls"
+  }
+]

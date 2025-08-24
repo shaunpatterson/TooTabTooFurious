@@ -1,3 +1,43 @@
 CLAUDE.md
 .idea/
 node_modules
+
+# Python virtual environment
+local-finetune/venv/
+venv/
+.venv/
+
+# Generated model files
+local-finetune/finetuned_model/
+local-finetune/merged_model/
+local-finetune/webllm_model/
+local-finetune/output/
+local-finetune/models/
+
+# Training data
+local-finetune/data/
+local-finetune/*.jsonl
+local-finetune/*.csv
+
+# Training logs and checkpoints
+local-finetune/*.log
+local-finetune/wandb/
+local-finetune/runs/
+local-finetune/checkpoint*/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Model conversion artifacts
+*.onnx
+*.wasm
+*.safetensors
+*.bin
+
+# Temporary files
+*.tmp
+.DS_Store

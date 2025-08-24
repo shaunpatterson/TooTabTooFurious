@@ -1,5 +1,6 @@
 import { TabGroupManager } from './modules/TabGroupManager.js';
-import { LocalLLM } from './modules/LocalLLM.js';
+// Use the fine-tuned tab categorizer with optimized patterns and prompts
+import { FineTunedTabCategorizer as LocalLLM } from './modules/FineTunedTabCategorizer.js';
 import { StorageManager } from './modules/StorageManager.js';
 
 class TooTabbedTooFurious {

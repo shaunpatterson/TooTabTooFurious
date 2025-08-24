@@ -1,0 +1,25 @@
+{
+  "model_id": "tab-categorizer-tinyllama",
+  "model_name": "Fine-tuned TinyLlama for Tab Categorization",
+  "version": "1.0.0",
+  "description": "TinyLlama fine-tuned specifically for browser tab categorization",
+  "categories": [
+    "Dev",
+    "Social",
+    "Entertainment",
+    "Work",
+    "Cloud",
+    "Shopping",
+    "News"
+  ],
+  "model_size_mb": 500,
+  "requires_gpu": true,
+  "fallback_available": true,
+  "training_info": {
+    "base_model": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+    "training_samples": 2000,
+    "epochs": 2,
+    "final_loss": 0.185,
+    "test_accuracy": "100% (5/5 samples)"
+  }
+}

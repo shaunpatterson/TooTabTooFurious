@@ -1,0 +1,32 @@
+{
+  "model_type": "llama",
+  "model_id": "tab-categorizer-tinyllama",
+  "model_name": "TabCategorizer-TinyLlama-1.1B",
+  "model_url": "./",
+  "local_id": "tab-categorizer-tinyllama-q4f32_1",
+  "conv_template": "tinyllama",
+  "temperature": 0.3,
+  "top_p": 0.95,
+  "context_window_size": 2048,
+  "prefill_chunk_size": 512,
+  "attention_sink_size": 4,
+  "sliding_window_size": -1,
+  "repetition_penalty": 1.1,
+  "tokenizer_files": [
+    "tokenizer.json",
+    "tokenizer_config.json"
+  ],
+  "model_lib_url": "./model.wasm",
+  "vram_required_MB": 500,
+  "low_resource_mode": true,
+  "categories": [
+    "Dev",
+    "Social",
+    "Entertainment",
+    "Work",
+    "Cloud",
+    "Shopping",
+    "News"
+  ],
+  "system_prompt": "You are a browser tab categorizer. Choose exactly one category from: Dev, Social, Entertainment, Work, Cloud, Shopping, News"
+}

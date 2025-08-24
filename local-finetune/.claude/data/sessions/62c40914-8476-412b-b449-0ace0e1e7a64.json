@@ -1,0 +1,12 @@
+{
+  "session_id": "62c40914-8476-412b-b449-0ace0e1e7a64",
+  "prompts": [
+    "continue",
+    "any stats on the results?",
+    "update .gitignore to ignore the generated files and the venv",
+    "is the extension built and ready to import into chrome?",
+    "    this.VALID_CATEGORIES = ['Dev', 'Social', 'Entertainment', 'Shopping', 'Work',\n                             'News', 'Cloud', 'Docs', 'Finance', 'AI', 'Education',\n                             'Communication', 'Health', 'Travel', 'Design', 'Analytics',\n                             'Security', 'Marketing', 'Government', 'Food', 'Photography',\n                             'Real Estate', 'HR', 'Legal', 'Insurance', 'Utilities',\n                             'Other'];\nthe fined-tunde model needs to use these same categories",
+    "the model still says Llama 8B on the UI",
+    "ls"
+  ]
+}
